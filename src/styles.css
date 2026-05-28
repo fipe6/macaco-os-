@@ -1,0 +1,46 @@
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background: #07070b;
+  font-family: 'Inter', -apple-system, system-ui, sans-serif;
+  color: #fff;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+body {
+  background:
+    radial-gradient(1100px 700px at 20% 0%, #1a1505 0%, transparent 60%),
+    radial-gradient(900px 600px at 100% 100%, #051418 0%, transparent 55%),
+    #07070b;
+}
+
+* { box-sizing: border-box; }
+
+input, button, textarea { font-family: inherit; }
+
+::-webkit-scrollbar { width: 0; height: 0; }
+
+@keyframes screenIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fabIn {
+  from { opacity: 0; transform: translateY(20px) scale(.9); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes sheetUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+/* On a phone (when running as PWA / mobile viewport), expand the device frame
+   to fill the screen — the iOS frame chrome stays as a stylistic shell. */
+@media (max-width: 480px) {
+  body { padding: 0 !important; }
+}
