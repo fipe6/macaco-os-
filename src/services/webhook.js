@@ -89,3 +89,20 @@ export const sendReporteWhatsApp = (tipo, datos) =>
 
 export const sendDeudaUpdate = (deuda) =>
   post('/webhook/macaco/finanzas', { event: 'deuda.actualizada', deuda });
+
+// Sync manual del catálogo público → n8n → Supabase
+// No usa la queue offline — respuesta inmediata para confirmar al usuario
+export async function sincronizarCatalogo(productos) {
+  if (!BASE) throw new Error('VITE_N8N_BASE_URL no configurada');
+  const url = `${BASE.replace(/\/$/, '')}/webhook/macaco/catalogo-sync`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {}),
+    },
+    body: JSON.stringify({ productos }),
+  });
+  if (!res.ok) throw new Error(`n8n ${res.status}`);
+  return res.json().catch(() => ({}));
+}

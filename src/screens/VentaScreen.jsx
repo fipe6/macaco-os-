@@ -3,18 +3,7 @@ import { MACACO, clp } from '../theme.js';
 import { Card, SectionTitle, Dot, Icon } from '../components/ui.jsx';
 import { Screen } from '../components/Screen.jsx';
 import { sendVenta } from '../services/webhook.js';
-
-const PRODUCTS = [
-  { id: 'pg', name: 'Proteína Grizzly', price: 36000, cost: 20000 },
-  { id: 'cdp', name: 'Creatina Dragón Pharma', price: 17500, cost: 9000 },
-  { id: 'cia', name: 'Creatina Inner Armour', price: 15000, cost: 8000 },
-  { id: 'ash', name: 'Ashwaganda', price: 15000, cost: 8000 },
-  { id: 'om3', name: 'Omega 3', price: 13000, cost: 7000 },
-  { id: 'mag', name: 'Glicinato de Magnesio', price: 15000, cost: 8000 },
-  { id: 'col', name: 'Colágeno 90 tabs', price: 18000, cost: 9500 },
-  { id: 'pre', name: 'Pre-entreno Edge Insanity', price: 28000, cost: 14000 },
-  { id: 'cra', name: 'Crema de arroz', price: 8000, cost: 4000 },
-];
+import { useApp } from '../store.jsx';
 
 const stepBtn = {
   width: 30, height: 30, borderRadius: 8,
@@ -25,37 +14,70 @@ const stepBtn = {
 };
 
 export default function VentaScreen({ go }) {
-  const [productId, setProductId] = useState('pg');
-  const [qty, setQty] = useState(2);
-  const product = PRODUCTS.find(p => p.id === productId);
-  const [price, setPrice] = useState(product.price);
-  const [client, setClient] = useState('');
-  const [method, setMethod] = useState('Transferencia');
+  const { productos, registrarVenta, registrarMovimiento } = useApp();
+  const disponibles = productos.filter(p => p.stock > 0);
+
+  const [productId, setProductId] = useState(disponibles[0]?.id || '');
+  const [qty, setQty]             = useState(1);
+  const [price, setPrice]         = useState(0);
+  const [client, setClient]       = useState('');
+  const [method, setMethod]       = useState('Transferencia');
   const [openPicker, setOpenPicker] = useState(false);
-  const [sent, setSent] = useState(false);
-  const [sending, setSending] = useState(false);
+  const [sent, setSent]           = useState(false);
+  const [sending, setSending]     = useState(false);
 
-  useEffect(() => { setPrice(product.price); }, [productId]);
+  const product = productos.find(p => p.id === productId);
 
-  const total = price * qty;
-  const margin = total - (product.cost * qty);
-  const marginPct = total > 0 ? (margin / total) * 100 : 0;
+  useEffect(() => {
+    if (product) setPrice(product.price);
+  }, [productId]);
+
+  useEffect(() => {
+    if (!productId && disponibles.length > 0) {
+      setProductId(disponibles[0].id);
+    }
+  }, [disponibles.length]);
+
+  if (!product) {
+    return (
+      <Screen>
+        <div style={{ padding: '40px 0', textAlign: 'center', color: MACACO.textMuted }}>
+          <div style={{ fontSize: 40, marginBottom: 16 }}>📦</div>
+          <div style={{ fontSize: 15, fontWeight: 600 }}>Sin stock disponible</div>
+          <div style={{ fontSize: 12, marginTop: 6 }}>Agrega productos en Inventario primero</div>
+        </div>
+      </Screen>
+    );
+  }
+
+  const maxQty   = product.stock;
+  const total    = price * qty;
+  const margen   = total - (product.cost * qty);
+  const margenPct = total > 0 ? (margen / total) * 100 : 0;
 
   const handleSend = async () => {
-    if (sending) return;
+    if (sending || qty > maxQty) return;
     setSending(true);
     const venta = {
-      productoId: productId,
-      producto: product.name,
-      cantidad: qty,
+      productoId:     productId,
+      producto:       product.name,
+      cantidad:       qty,
       precioUnitario: price,
-      costoUnitario: product.cost,
+      costoUnitario:  product.cost,
       total,
-      margen: margin,
-      cliente: client || null,
-      metodoPago: method,
-      fecha: new Date().toISOString(),
+      margen,
+      cliente:        client || null,
+      metodoPago:     method,
     };
+    registrarVenta(venta);
+    registrarMovimiento({
+      productoId:   productId,
+      producto:     product.name,
+      tipo:         'venta',
+      delta:        -qty,
+      stockAntes:   product.stock,
+      stockDespues: Math.max(0, product.stock - qty),
+    });
     await sendVenta(venta);
     setSent(true);
     setSending(false);
@@ -72,7 +94,7 @@ export default function VentaScreen({ go }) {
           Registrar venta
         </div>
         <div style={{ fontSize: 12.5, color: MACACO.textDim, marginTop: 4 }}>
-          Se envía vía webhook a n8n
+          Se guarda localmente y se envía a n8n
         </div>
       </div>
 
@@ -90,28 +112,33 @@ export default function VentaScreen({ go }) {
           <div>
             <div style={{ fontSize: 15, fontWeight: 600 }}>{product.name}</div>
             <div style={{ fontSize: 12, color: MACACO.textMuted, marginTop: 2 }}>
-              Precio sugerido {clp(product.price)} · costo {clp(product.cost)}
+              Precio sugerido {clp(product.price)} · costo {clp(product.cost)} · <span style={{ color: MACACO.cyan }}>{product.stock} en stock</span>
             </div>
           </div>
-          <svg width="14" height="14" viewBox="0 0 14 14" style={{ transform: openPicker ? 'rotate(180deg)' : 'none', transition: '200ms' }}>
+          <svg width="14" height="14" viewBox="0 0 14 14" style={{ transform: openPicker ? 'rotate(180deg)' : 'none', transition: '200ms', flexShrink: 0 }}>
             <path d="M3 5l4 4 4-4" stroke="#fff" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </button>
         {openPicker && (
           <div style={{ borderTop: `1px solid ${MACACO.borderSoft}`, maxHeight: 240, overflowY: 'auto' }}>
-            {PRODUCTS.map((p, i) => (
+            {disponibles.map((p, i) => (
               <button key={p.id}
-                onClick={() => { setProductId(p.id); setOpenPicker(false); }}
+                onClick={() => { setProductId(p.id); setOpenPicker(false); setQty(1); }}
                 style={{
                   width: '100%', background: p.id === productId ? 'rgba(245,197,24,0.06)' : 'transparent',
                   border: 'none', padding: '11px 16px',
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  borderBottom: i === PRODUCTS.length - 1 ? 'none' : `1px solid ${MACACO.borderSoft}`,
+                  borderBottom: i === disponibles.length - 1 ? 'none' : `1px solid ${MACACO.borderSoft}`,
                   cursor: 'pointer', color: '#fff', fontFamily: 'inherit', textAlign: 'left',
                 }}
               >
                 <span style={{ fontSize: 13.5 }}>{p.name}</span>
-                <span style={{ fontSize: 12, color: MACACO.textDim }}>{clp(p.price)}</span>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 12, color: MACACO.textDim }}>{clp(p.price)}</div>
+                  <div style={{ fontSize: 10, color: p.stock <= 3 ? MACACO.primary : MACACO.textMuted, marginTop: 2 }}>
+                    {p.stock} en stock
+                  </div>
+                </div>
               </button>
             ))}
           </div>
@@ -125,8 +152,11 @@ export default function VentaScreen({ go }) {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
             <button onClick={() => setQty(q => Math.max(1, q - 1))} style={stepBtn}>−</button>
-            <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{qty}</div>
-            <button onClick={() => setQty(q => q + 1)} style={stepBtn}>+</button>
+            <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: qty > maxQty ? MACACO.danger : '#fff' }}>{qty}</div>
+            <button onClick={() => setQty(q => Math.min(maxQty, q + 1))} style={stepBtn}>+</button>
+          </div>
+          <div style={{ fontSize: 10, color: MACACO.textMuted, textAlign: 'center', marginTop: 6 }}>
+            máx {maxQty}
           </div>
         </Card>
         <Card padding={14}>
@@ -195,36 +225,48 @@ export default function VentaScreen({ go }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
           <div style={{ fontSize: 12, color: MACACO.textDim }}>Margen estimado</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-            <span style={{ fontSize: 16, fontWeight: 700, color: MACACO.success }}>{clp(margin)}</span>
-            <span style={{ fontSize: 12, color: MACACO.success, fontWeight: 600 }}>({marginPct.toFixed(0)}%)</span>
+            <span style={{ fontSize: 16, fontWeight: 700, color: MACACO.success }}>{clp(margen)}</span>
+            <span style={{ fontSize: 12, color: MACACO.success, fontWeight: 600 }}>({margenPct.toFixed(0)}%)</span>
           </div>
         </div>
       </Card>
 
+      {qty > maxQty && (
+        <div style={{
+          marginBottom: 10, padding: '10px 14px', borderRadius: 10,
+          background: 'rgba(255,77,77,0.08)', border: '1px solid rgba(255,77,77,0.3)',
+          fontSize: 12, color: MACACO.danger, fontWeight: 600,
+        }}>
+          Stock insuficiente — solo hay {maxQty} unidad{maxQty !== 1 ? 'es' : ''}
+        </div>
+      )}
+
       <button
         onClick={handleSend}
-        disabled={sent || sending}
+        disabled={sent || sending || qty > maxQty || price === 0}
         style={{
           width: '100%', padding: '16px',
-          background: sent ? MACACO.success : MACACO.primary,
-          color: '#0A0A0F', border: 'none', borderRadius: 12,
+          background: sent ? MACACO.success : (qty > maxQty || price === 0) ? MACACO.cardElev : MACACO.primary,
+          color: (qty > maxQty || price === 0) ? MACACO.textMuted : '#0A0A0F',
+          border: 'none', borderRadius: 12,
           fontSize: 14, fontWeight: 700, letterSpacing: '0.04em',
-          cursor: sent || sending ? 'default' : 'pointer', fontFamily: 'inherit',
+          cursor: sent || sending || qty > maxQty || price === 0 ? 'default' : 'pointer',
+          fontFamily: 'inherit',
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           boxShadow: `0 0 24px ${(sent ? MACACO.success : MACACO.primary)}55`,
           transition: '200ms',
         }}
       >
-        {sent ? <><Icon.check size={16} /> ENVIADO A n8n</>
+        {sent ? <><Icon.check size={16} /> VENTA REGISTRADA</>
           : sending ? 'ENVIANDO...'
-          : <>ENVIAR A n8n <Icon.arrowRight size={14} /></>}
+          : <>REGISTRAR VENTA <Icon.arrowRight size={14} /></>}
       </button>
       <div style={{
         marginTop: 10, textAlign: 'center', fontSize: 11.5,
         color: MACACO.textMuted, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
       }}>
         <Dot color={MACACO.success} size={6} />
-        Webhook: /webhook/macaco/venta
+        Guarda en dispositivo · sincroniza con n8n
       </div>
     </Screen>
   );

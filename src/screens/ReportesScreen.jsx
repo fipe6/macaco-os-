@@ -1,16 +1,36 @@
 import { useState } from 'react';
-import { MACACO, clp } from '../theme.js';
+import { MACACO, clp, clpCompact } from '../theme.js';
 import { Card, SectionTitle, Progress, Trend, Dot, Icon } from '../components/ui.jsx';
 import { Screen } from '../components/Screen.jsx';
 import { sendReporteWhatsApp } from '../services/webhook.js';
+import { useApp } from '../store.jsx';
+import {
+  ventasDelDia, ventasDelMes, ventasUltimos7Dias,
+  sumarTotal, sumarMargen, getDiasGraficoSemanal, getTopProductos,
+  calcMetricasInventario, getResumenClientes, MESES,
+} from '../store.jsx';
+
+const TABS = ['Diario', 'Semanal', 'Mensual', 'Clientes'];
 
 export default function ReportesScreen() {
-  const [tab, setTab] = useState('Mensual');
+  const { ventas, movimientos, productos, config } = useApp();
+  const [tab,     setTab]     = useState('Mensual');
   const [sending, setSending] = useState(false);
 
   const enviarWsp = async () => {
     setSending(true);
-    await sendReporteWhatsApp(tab.toLowerCase(), { tipo: tab });
+    const hoy  = new Date();
+    const vMes = ventasDelMes(ventas);
+    const vHoy = ventasDelDia(ventas);
+    const vSem = ventasUltimos7Dias(ventas);
+    await sendReporteWhatsApp(tab.toLowerCase(), {
+      tipo:     tab,
+      totalMes: sumarTotal(vMes),
+      totalHoy: sumarTotal(vHoy),
+      totalSem: sumarTotal(vSem),
+      meta:     config.metaMensual,
+      mes:      MESES[hoy.getMonth()],
+    });
     setSending(false);
   };
 
@@ -21,138 +41,330 @@ export default function ReportesScreen() {
         <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.02em', marginTop: 4 }}>Reportes</div>
       </div>
 
+      {/* Tabs */}
       <div style={{
         display: 'flex', background: MACACO.card,
-        border: `1px solid ${MACACO.border}`, borderRadius: 12, padding: 4,
-        marginBottom: 16,
+        border: `1px solid ${MACACO.border}`, borderRadius: 12, padding: 4, marginBottom: 16,
       }}>
-        {['Diario', 'Semanal', 'Mensual'].map(t => {
+        {TABS.map(t => {
           const active = tab === t;
           return (
-            <button key={t} onClick={() => setTab(t)}
-              style={{
-                flex: 1, padding: '9px',
-                background: active ? MACACO.cardElev : 'transparent',
-                color: active ? '#fff' : MACACO.textDim,
-                border: 'none', borderRadius: 9,
-                fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
-                fontFamily: 'inherit',
-                boxShadow: active ? `inset 0 0 0 1px ${MACACO.border}` : 'none',
-              }}
-            >{t}</button>
+            <button key={t} onClick={() => setTab(t)} style={{
+              flex: 1, padding: '8px 4px',
+              background: active ? MACACO.cardElev : 'transparent',
+              color: active ? '#fff' : MACACO.textDim,
+              border: 'none', borderRadius: 9,
+              fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+              boxShadow: active ? `inset 0 0 0 1px ${MACACO.border}` : 'none',
+              transition: '150ms',
+            }}>{t}</button>
           );
         })}
       </div>
 
       <div style={{ animation: 'fadeUp 320ms cubic-bezier(.2,.7,.2,1)' }}>
-        {tab === 'Diario' && <ReporteDiario />}
-        {tab === 'Semanal' && <ReporteSemanal />}
-        {tab === 'Mensual' && <ReporteMensual />}
+        {tab === 'Diario'   && <ReporteDiario  ventas={ventas} config={config} />}
+        {tab === 'Semanal'  && <ReporteSemanal ventas={ventas} config={config} />}
+        {tab === 'Mensual'  && <ReporteMensual ventas={ventas} movimientos={movimientos} productos={productos} config={config} />}
+        {tab === 'Clientes' && <ClientesTab    ventas={ventas} />}
       </div>
 
-      <button onClick={enviarWsp} disabled={sending} style={{
-        width: '100%', padding: '14px', marginTop: 16,
-        background: '#25D366', color: '#fff', border: 'none', borderRadius: 12,
-        fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-        boxShadow: '0 0 24px rgba(37,211,102,0.3)',
-        opacity: sending ? 0.7 : 1,
-      }}>
-        <Icon.whatsapp size={16}/> {sending ? 'Enviando...' : 'Enviar reporte a WhatsApp'}
-      </button>
+      {tab !== 'Clientes' && (
+        <button onClick={enviarWsp} disabled={sending} style={{
+          width: '100%', padding: '14px', marginTop: 16,
+          background: '#25D366', color: '#fff', border: 'none', borderRadius: 12,
+          fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          boxShadow: '0 0 24px rgba(37,211,102,0.3)', opacity: sending ? 0.7 : 1,
+        }}>
+          <Icon.whatsapp size={16}/> {sending ? 'Enviando...' : 'Enviar reporte a WhatsApp'}
+        </button>
+      )}
     </Screen>
   );
 }
 
-function ReporteDiario() {
+// ─── Diario ───────────────────────────────────────────────────────────────────
+
+function ReporteDiario({ ventas, config }) {
+  const vHoy  = ventasDelDia(ventas);
+  const total = sumarTotal(vHoy);
+  const margen = sumarMargen(vHoy);
+  const top   = getTopProductos(vHoy, 1)[0];
+  const aov   = vHoy.length > 0 ? total / vHoy.length : 0;
+
+  const ayer    = new Date(); ayer.setDate(ayer.getDate() - 1);
+  const vAyer   = ventasDelDia(ventas, ayer);
+  const totAyer = sumarTotal(vAyer);
+  const trend   = totAyer > 0 ? Math.round(((total - totAyer) / totAyer) * 100) : null;
+
   return (
     <>
       <Card style={{ marginBottom: 12 }} padding={18}>
         <div style={{ fontSize: 11, color: MACACO.textDim, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Ventas hoy</div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginTop: 6 }}>
-          <div style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-0.03em' }}>$127.000</div>
-          <Trend value={12} />
+          <div style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-0.03em', fontVariantNumeric: 'tabular-nums' }}>{clp(total)}</div>
+          {trend !== null && <Trend value={trend} />}
         </div>
-        <div style={{ fontSize: 11.5, color: MACACO.textMuted, marginTop: 4 }}>vs ayer</div>
+        {totAyer > 0 && <div style={{ fontSize: 11.5, color: MACACO.textMuted, marginTop: 4 }}>vs ayer ({clp(totAyer)})</div>}
       </Card>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
-        <KpiTile label="Transacciones" value="4" />
-        <KpiTile label="Ticket promedio" value="$31.750" />
+        <KpiTile label="Transacciones"  value={String(vHoy.length)} />
+        <KpiTile label="Ticket promedio" value={aov > 0 ? clp(Math.round(aov)) : '—'} />
       </div>
-      <Card style={{ marginBottom: 12 }}>
-        <SectionTitle style={{ marginBottom: 10 }}>Más vendido</SectionTitle>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 700 }}>Proteína Grizzly</div>
-            <div style={{ fontSize: 12, color: MACACO.textMuted, marginTop: 2 }}>3 unidades vendidas</div>
+      {total > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+          <KpiTile label="Margen bruto" value={clp(margen)} color={MACACO.success} />
+          <KpiTile label="% Margen" value={total > 0 ? (margen / total * 100).toFixed(0) + '%' : '—'} color={MACACO.success} />
+        </div>
+      )}
+      {top && (
+        <Card style={{ marginBottom: 12 }}>
+          <SectionTitle style={{ marginBottom: 10 }}>Más vendido hoy</SectionTitle>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 700 }}>{top.n}</div>
+              <div style={{ fontSize: 12, color: MACACO.textMuted, marginTop: 2 }}>{top.q} unidad{top.q > 1 ? 'es' : ''}</div>
+            </div>
+            <div style={{ padding: '6px 12px', borderRadius: 999, background: 'rgba(245,197,24,0.12)', color: MACACO.primary, fontSize: 12, fontWeight: 700 }}>×{top.q}</div>
           </div>
-          <div style={{
-            padding: '6px 12px', borderRadius: 999,
-            background: 'rgba(245,197,24,0.12)', color: MACACO.primary,
-            fontSize: 12, fontWeight: 700,
-          }}>×3</div>
-        </div>
-      </Card>
-      <Card style={{ background: 'linear-gradient(135deg, rgba(0,212,255,0.08), rgba(0,212,255,0.02))', borderColor: 'rgba(0,212,255,0.25)' }}>
-        <div style={{ fontSize: 11, color: MACACO.cyan, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 6 }}>Foco del día</div>
-        <div style={{ fontSize: 14, lineHeight: 1.45 }}>
-          Cobrar <b>$322.000</b> en cuentas pendientes
-        </div>
-      </Card>
+        </Card>
+      )}
+      {vHoy.length === 0 && <EmptyState texto="Sin ventas registradas hoy" />}
     </>
   );
 }
 
-function ReporteSemanal() {
-  const days = [
-    { d: 'Lun', v: 42000 },{ d: 'Mar', v: 58000 },{ d: 'Mié', v: 81000 },
-    { d: 'Jue', v: 35000 },{ d: 'Vie', v: 37000 },{ d: 'Sáb', v: 127000 },{ d: 'Dom', v: 0 },
-  ];
-  const max = Math.max(...days.map(d => d.v));
+// ─── Semanal ──────────────────────────────────────────────────────────────────
+
+function ReporteSemanal({ ventas, config }) {
+  const v7    = ventasUltimos7Dias(ventas);
+  const total = sumarTotal(v7);
+  const dias  = getDiasGraficoSemanal(ventas);
+  const max   = Math.max(1, ...dias.map(d => d.v));
+  const top3  = getTopProductos(v7, 3);
+  const metaSem = config.metaDiaria * 7;
+  const pct   = metaSem > 0 ? (total / metaSem) * 100 : 0;
+
   return (
     <>
       <Card style={{ marginBottom: 12 }} padding={18}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
           <div>
-            <div style={{ fontSize: 11, color: MACACO.textDim, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Ventas semana</div>
-            <div style={{ fontSize: 28, fontWeight: 800, marginTop: 4 }}>$380.000</div>
+            <div style={{ fontSize: 11, color: MACACO.textDim, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Ventas 7 días</div>
+            <div style={{ fontSize: 28, fontWeight: 800, marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>{clp(total)}</div>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 11, color: MACACO.textDim }}>Meta $490k</div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: MACACO.primary, marginTop: 2 }}>77.5%</div>
+            <div style={{ fontSize: 11, color: MACACO.textDim }}>Meta {clpCompact(metaSem)}</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: MACACO.primary, marginTop: 2 }}>{pct.toFixed(1)}%</div>
           </div>
         </div>
-        <div style={{ marginTop: 14 }}><Progress value={77.5} color={MACACO.primary} height={6} /></div>
+        <div style={{ marginTop: 14 }}><Progress value={pct} color={MACACO.primary} height={6} /></div>
       </Card>
       <Card style={{ marginBottom: 12 }}>
         <SectionTitle style={{ marginBottom: 14 }}>Últimos 7 días</SectionTitle>
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 110 }}>
-          {days.map((d, i) => {
+          {dias.map((d, i) => {
             const h = d.v === 0 ? 4 : (d.v / max) * 90 + 8;
-            const isToday = i === 5;
             return (
-              <div key={d.d} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-                <div style={{ fontSize: 9, color: isToday ? MACACO.primary : MACACO.textMuted, fontWeight: 600 }}>
-                  {d.v >= 1000 ? Math.round(d.v / 1000) + 'k' : ''}
+              <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                <div style={{ fontSize: 9, color: d.isToday ? MACACO.primary : MACACO.textMuted, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                  {d.v >= 1000 ? Math.round(d.v / 1000) + 'k' : d.v > 0 ? d.v : ''}
                 </div>
-                <div style={{
-                  width: '100%', height: h, borderRadius: 4,
-                  background: isToday ? MACACO.primary : 'rgba(245,197,24,0.25)',
-                  boxShadow: isToday ? `0 0 10px ${MACACO.primary}88` : 'none',
-                }} />
-                <div style={{ fontSize: 10.5, color: isToday ? '#fff' : MACACO.textMuted, fontWeight: isToday ? 700 : 500 }}>{d.d}</div>
+                <div style={{ width: '100%', height: h, borderRadius: 4, background: d.isToday ? MACACO.primary : 'rgba(245,197,24,0.25)', boxShadow: d.isToday ? `0 0 10px ${MACACO.primary}88` : 'none' }} />
+                <div style={{ fontSize: 10.5, color: d.isToday ? '#fff' : MACACO.textMuted, fontWeight: d.isToday ? 700 : 500 }}>{d.d}</div>
               </div>
             );
           })}
         </div>
       </Card>
-      <SectionTitle>Top 3 productos</SectionTitle>
+      {top3.length > 0 && <TopProductosList items={top3} />}
+      {v7.length === 0 && <EmptyState texto="Sin ventas en los últimos 7 días" />}
+    </>
+  );
+}
+
+// ─── Mensual ──────────────────────────────────────────────────────────────────
+
+function ReporteMensual({ ventas, movimientos, productos, config }) {
+  const hoy    = new Date();
+  const vMes   = ventasDelMes(ventas);
+  const total  = sumarTotal(vMes);
+  const margen = sumarMargen(vMes);
+  const aov    = vMes.length > 0 ? total / vMes.length : 0;
+  const pct    = config.metaMensual > 0 ? (total / config.metaMensual) * 100 : 0;
+  const top3   = getTopProductos(vMes, 3);
+
+  const { cogsMes, unidadesVendidas, unidadesRecibidas, inventarioActual, str, rotacion, dsi } =
+    calcMetricasInventario(ventas, movimientos, productos, hoy);
+
+  const margenPct = total > 0 ? (margen / total * 100) : 0;
+
+  return (
+    <>
+      <Card style={{ marginBottom: 12 }} padding={18}>
+        <div style={{ fontSize: 11, color: MACACO.textDim, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase' }}>{MESES[hoy.getMonth()]} {hoy.getFullYear()}</div>
+        <div style={{ fontSize: 32, fontWeight: 800, marginTop: 6, fontVariantNumeric: 'tabular-nums' }}>{clp(total)}</div>
+        <div style={{ fontSize: 12, color: MACACO.textMuted, marginTop: 4 }}>de {clp(config.metaMensual)} meta</div>
+        <div style={{ marginTop: 14 }}>
+          <Progress value={pct} color={MACACO.primary} height={10} />
+          <div style={{ marginTop: 6, fontSize: 11, color: MACACO.textMuted, textAlign: 'right' }}>{pct.toFixed(1)}%</div>
+        </div>
+      </Card>
+
+      <SectionTitle>KPIs financieros</SectionTitle>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+        <KpiTile label="Margen bruto"   value={margenPct > 0 ? margenPct.toFixed(0) + '%' : '—'} color={MACACO.success} />
+        <KpiTile label="Ticket prom."   value={aov > 0 ? clpCompact(Math.round(aov)) : '—'} />
+        <KpiTile label="Transacciones"  value={String(vMes.length)} color={MACACO.cyan} />
+        <KpiTile label="COGS del mes"   value={cogsMes > 0 ? clpCompact(cogsMes) : '—'} color={MACACO.danger} />
+      </div>
+
+      <SectionTitle>Métricas de inventario</SectionTitle>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+        <KpiTile
+          label="Sell-Through"
+          value={str !== null ? str.toFixed(0) + '%' : 'Sin compras'}
+          color={str !== null ? (str >= 70 ? MACACO.success : str >= 40 ? MACACO.primary : MACACO.danger) : MACACO.textMuted}
+          hint={unidadesRecibidas > 0 ? `${unidadesVendidas}u vend / ${unidadesRecibidas}u recib` : 'Registra compras para calcular'}
+        />
+        <KpiTile
+          label="Rotación inv."
+          value={rotacion !== null ? rotacion.toFixed(2) + '×' : '—'}
+          color={MACACO.cyan}
+          hint="COGS / inventario actual"
+        />
+        <KpiTile
+          label="DSI"
+          value={dsi !== null ? dsi + ' días' : '—'}
+          color={dsi !== null ? (dsi <= 15 ? MACACO.danger : dsi <= 30 ? MACACO.primary : MACACO.success) : MACACO.textMuted}
+          hint="Días hasta agotar stock"
+        />
+        <KpiTile
+          label="Val. inventario"
+          value={clpCompact(inventarioActual)}
+          color={MACACO.textDim}
+          hint="A costo actual"
+        />
+      </div>
+
+      {top3.length > 0 && <TopProductosList items={top3} titulo="Top productos del mes" />}
+      {vMes.length === 0 && <EmptyState texto="Sin ventas registradas este mes" />}
+    </>
+  );
+}
+
+// ─── Clientes ─────────────────────────────────────────────────────────────────
+
+function ClientesTab({ ventas }) {
+  const clientes = getResumenClientes(ventas);
+  const [selected, setSelected] = useState(null);
+
+  const clienteConNombre = ventas.filter(v => v.cliente).length;
+  const sinNombre        = ventas.length - clienteConNombre;
+
+  if (clientes.length === 0) {
+    return (
+      <Card style={{ marginTop: 8 }}>
+        <div style={{ textAlign: 'center', padding: '20px 0' }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>👤</div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>Sin clientes registrados</div>
+          <div style={{ fontSize: 12, color: MACACO.textMuted, marginTop: 6, lineHeight: 1.5 }}>
+            Ingresa el nombre del cliente al registrar una venta para ver su historial aquí.
+            {sinNombre > 0 && ` (${sinNombre} venta${sinNombre > 1 ? 's' : ''} sin nombre)`}
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+        <KpiTile label="Clientes únicos" value={String(clientes.length)} color={MACACO.cyan} />
+        <KpiTile label="LTV promedio"    value={clpCompact(Math.round(clientes.reduce((s, c) => s + c.ltv, 0) / clientes.length))} />
+      </div>
+
+      <SectionTitle>Ranking por LTV</SectionTitle>
+      <Card padding={0} style={{ marginBottom: 14 }}>
+        {clientes.map((c, i) => (
+          <div
+            key={c.nombre}
+            onClick={() => setSelected(selected === c.nombre ? null : c.nombre)}
+            style={{
+              padding: '14px',
+              borderBottom: i === clientes.length - 1 ? 'none' : `1px solid ${MACACO.borderSoft}`,
+              cursor: 'pointer',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{
+                width: 32, height: 32, borderRadius: 999, flexShrink: 0,
+                background: i === 0 ? 'rgba(245,197,24,0.2)' : 'rgba(255,255,255,0.06)',
+                color: i === 0 ? MACACO.primary : MACACO.textDim,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 13, fontWeight: 800,
+              }}>{i + 1}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>{c.nombre}</div>
+                <div style={{ fontSize: 11, color: MACACO.textMuted, marginTop: 2 }}>
+                  {c.compras} compra{c.compras > 1 ? 's' : ''} · ticket prom. {clp(Math.round(c.ticketPromedio))}
+                </div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 16, fontWeight: 800, color: i === 0 ? MACACO.primary : '#fff', fontVariantNumeric: 'tabular-nums' }}>
+                  {clp(c.ltv)}
+                </div>
+                <div style={{ fontSize: 10, color: MACACO.success, fontWeight: 600, marginTop: 2 }}>
+                  {c.margenPct.toFixed(0)}% margen
+                </div>
+              </div>
+            </div>
+
+            {selected === c.nombre && (
+              <div style={{
+                marginTop: 12, padding: '10px 12px', borderRadius: 10,
+                background: 'rgba(255,255,255,0.04)', border: `1px solid ${MACACO.borderSoft}`,
+              }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <MiniDato label="Top producto"  value={c.topProducto} />
+                  <MiniDato label="Margen total"  value={clp(c.margen)} />
+                  <MiniDato label="Última compra" value={new Date(c.ultima).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })} />
+                  <MiniDato label="LTV total"     value={clp(c.ltv)} color={MACACO.primary} />
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </Card>
+
+      {sinNombre > 0 && (
+        <div style={{ fontSize: 11, color: MACACO.textMuted, textAlign: 'center', marginBottom: 12 }}>
+          {sinNombre} venta{sinNombre > 1 ? 's' : ''} sin nombre de cliente no aparecen aquí
+        </div>
+      )}
+    </>
+  );
+}
+
+// ─── Componentes compartidos ──────────────────────────────────────────────────
+
+function KpiTile({ label, value, color, hint }) {
+  return (
+    <div style={{ background: MACACO.card, border: `1px solid ${MACACO.border}`, borderRadius: 12, padding: 14 }}>
+      <div style={{ fontSize: 10.5, color: MACACO.textDim, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase' }}>{label}</div>
+      <div style={{ fontSize: 20, fontWeight: 800, color: color || '#fff', marginTop: 6, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+      {hint && <div style={{ fontSize: 9.5, color: MACACO.textMuted, marginTop: 4, lineHeight: 1.4 }}>{hint}</div>}
+    </div>
+  );
+}
+
+function TopProductosList({ items, titulo = 'Top productos' }) {
+  return (
+    <>
+      <SectionTitle>{titulo}</SectionTitle>
       <Card padding={0} style={{ marginBottom: 12 }}>
-        {[
-          { n: 'Proteína Grizzly', q: 8, v: 288000 },
-          { n: 'Creatina D. Pharma', q: 5, v: 87500 },
-          { n: 'Omega 3', q: 3, v: 39000 },
-        ].map((p, i, arr) => (
+        {items.map((p, i, arr) => (
           <div key={i} style={{
             display: 'flex', alignItems: 'center', padding: '12px 14px',
             borderBottom: i === arr.length - 1 ? 'none' : `1px solid ${MACACO.borderSoft}`,
@@ -163,10 +375,10 @@ function ReporteSemanal() {
               color: i === 0 ? MACACO.primary : MACACO.textDim,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 11, fontWeight: 800, marginRight: 12,
-            }}>{i+1}</div>
+            }}>{i + 1}</div>
             <div style={{ flex: 1, fontSize: 13, fontWeight: 500 }}>{p.n}</div>
             <div style={{ fontSize: 12, color: MACACO.textMuted, marginRight: 12 }}>×{p.q}</div>
-            <div style={{ fontSize: 13, fontWeight: 700 }}>{clp(p.v)}</div>
+            <div style={{ fontSize: 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{clp(p.v)}</div>
           </div>
         ))}
       </Card>
@@ -174,58 +386,19 @@ function ReporteSemanal() {
   );
 }
 
-function ReporteMensual() {
+function MiniDato({ label, value, color }) {
   return (
-    <>
-      <Card style={{ marginBottom: 12 }} padding={18}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div>
-            <div style={{ fontSize: 11, color: MACACO.textDim, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Mayo 2026</div>
-            <div style={{ fontSize: 32, fontWeight: 800, marginTop: 6 }}>$1.126.000</div>
-            <div style={{ fontSize: 12, color: MACACO.textMuted, marginTop: 4 }}>de $10.000.000 meta</div>
-          </div>
-          <div style={{
-            padding: '6px 10px', borderRadius: 8,
-            background: 'rgba(255,77,77,0.12)', color: MACACO.danger,
-            fontSize: 10, fontWeight: 700, letterSpacing: '0.12em',
-            display: 'flex', alignItems: 'center', gap: 4,
-          }}>
-            <Dot color={MACACO.danger} size={6}/> FASE 1
-          </div>
-        </div>
-        <div style={{ marginTop: 14 }}>
-          <Progress value={11.3} color={MACACO.primary} height={10} />
-          <div style={{ marginTop: 6, fontSize: 11, color: MACACO.textMuted, textAlign: 'right' }}>11.3%</div>
-        </div>
-      </Card>
-      <SectionTitle>KPIs clave</SectionTitle>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
-        <KpiTile label="Margen neto" value="48%" color={MACACO.success} />
-        <KpiTile label="Rotación inv." value="1.07×" color={MACACO.cyan} />
-        <KpiTile label="Solvencia" value="0.59×" color={MACACO.danger} />
-        <KpiTile label="Ticket prom." value="$28.150" />
-      </div>
-      <Card style={{ background: 'linear-gradient(135deg, rgba(245,197,24,0.06), transparent)', borderColor: 'rgba(245,197,24,0.25)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-          <Dot color={MACACO.danger} size={8}/>
-          <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: MACACO.primary }}>Fase 1 — Fundación</div>
-        </div>
-        <div style={{ fontSize: 13, color: MACACO.textDim, lineHeight: 1.5 }}>
-          Construir caja sólida, eliminar deuda con interés, estabilizar inventario sobre 9 SKUs.
-        </div>
-      </Card>
-    </>
+    <div>
+      <div style={{ fontSize: 9.5, color: MACACO.textMuted, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{label}</div>
+      <div style={{ fontSize: 12, fontWeight: 700, color: color || '#fff', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+    </div>
   );
 }
 
-function KpiTile({ label, value, color }) {
+function EmptyState({ texto }) {
   return (
-    <div style={{
-      background: MACACO.card, border: `1px solid ${MACACO.border}`,
-      borderRadius: 12, padding: 14,
-    }}>
-      <div style={{ fontSize: 10.5, color: MACACO.textDim, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase' }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 800, color: color || '#fff', marginTop: 6 }}>{value}</div>
-    </div>
+    <Card>
+      <div style={{ textAlign: 'center', padding: '12px 0', color: MACACO.textMuted, fontSize: 13 }}>{texto}</div>
+    </Card>
   );
 }
