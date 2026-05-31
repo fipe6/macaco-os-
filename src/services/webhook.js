@@ -97,10 +97,7 @@ export async function sincronizarCatalogo(productos) {
   const url = `${BASE.replace(/\/$/, '')}/webhook/macaco/catalogo-sync`;
   const res = await fetch(url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {}),
-    },
+    headers: { 'Content-Type': 'text/plain' },
     body: JSON.stringify({ productos }),
   });
   if (!res.ok) throw new Error(`n8n ${res.status}`);
