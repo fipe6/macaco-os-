@@ -15,6 +15,17 @@ import { DB_HABILITADO } from './services/supabase.js';
 import { useApp } from './store.jsx';
 
 function LoadingDB() {
+  const [seg, setSeg] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setSeg(s => s + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const msg = seg < 3  ? 'Conectando a Supabase...'
+            : seg < 7  ? 'Cargando tus datos...'
+            : seg < 11 ? 'Tardando más de lo normal...'
+            : 'Verificando conexión...';
+
   return (
     <div style={{
       position: 'absolute', inset: 0, zIndex: 200,
@@ -29,7 +40,20 @@ function LoadingDB() {
         borderTopColor: MACACO.primary,
         animation: 'spin 700ms linear infinite',
       }} />
-      <div style={{ fontSize: 13, color: MACACO.textDim, fontWeight: 600 }}>Cargando datos...</div>
+      <div style={{ fontSize: 13, color: MACACO.textDim, fontWeight: 600 }}>{msg}</div>
+      {seg >= 11 && (
+        <button
+          onClick={() => window.location.reload()}
+          style={{
+            padding: '10px 20px', borderRadius: 10,
+            background: MACACO.primary, color: '#0A0A0F',
+            border: 'none', fontSize: 12, fontWeight: 800,
+            cursor: 'pointer', fontFamily: 'inherit',
+          }}
+        >
+          REINTENTAR
+        </button>
+      )}
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
