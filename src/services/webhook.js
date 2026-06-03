@@ -8,7 +8,7 @@
 //
 // Si no hay URL configurada, envia a una cola local (localStorage) y log a consola.
 
-const BASE = import.meta.env.VITE_N8N_BASE_URL || '';
+const BASE  = import.meta.env.VITE_N8N_BASE_URL  || 'https://n8n.makakosuplementos.com';
 const TOKEN = import.meta.env.VITE_N8N_TOKEN || '';
 
 const QUEUE_KEY = 'macaco:webhook-queue';
