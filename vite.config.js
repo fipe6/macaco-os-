@@ -6,8 +6,10 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'icon-192.png', 'icon-512.png'],
+      // selfDestroying: desregistra el SW viejo y borra todos los caches en el celular.
+      // Permite que siempre cargue código fresco del servidor.
+      // El manifest sigue funcionando para "Añadir a pantalla de inicio".
+      selfDestroying: true,
       manifest: {
         name: 'Macaco OS',
         short_name: 'Macaco',
@@ -22,31 +24,6 @@ export default defineConfig({
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
         ]
       },
-      workbox: {
-        skipWaiting: true,
-        clientsClaim: true,
-        // NO cachear JS/CSS/HTML — siempre red para garantizar versión más nueva
-        globPatterns: ['**/*.{png,svg,ico,woff,woff2}'],
-        runtimeCaching: [
-          {
-            // Fuentes de Google: cache larga
-            urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: { cacheName: 'google-fonts', expiration: { maxAgeSeconds: 60 * 60 * 24 * 30 } }
-          },
-          {
-            // Supabase: siempre red, nunca cachear
-            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
-            handler: 'NetworkOnly',
-          },
-          {
-            // Todo lo demás (JS, CSS, HTML): NetworkFirst — red primero, cache como fallback
-            urlPattern: /\.(js|css|html)$/,
-            handler: 'NetworkFirst',
-            options: { cacheName: 'app-shell', networkTimeoutSeconds: 5 }
-          }
-        ]
-      }
     })
   ],
   server: {
