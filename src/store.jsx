@@ -91,12 +91,20 @@ export function AppProvider({ children }) {
 
   // ── Cargar desde Supabase al iniciar ──────────────────────────────────────
   useEffect(() => {
-    // Test explícito de conexión antes de cargar datos
-    testConnection()
-      .then(() => console.log('[db] ✅ conexión OK'))
-      .catch(err => console.warn('[db] ⚠️ test conexión:', err.message));
+    // Intenta conectar hasta 3 veces antes de rendirse
+    const intentarCargar = async (intentos = 3) => {
+      for (let i = 1; i <= intentos; i++) {
+        try {
+          return await selectAll('app_data');
+        } catch (err) {
+          console.warn(`[db] intento ${i}/${intentos} falló:`, err.message);
+          if (i < intentos) await new Promise(r => setTimeout(r, 2000));
+          else throw err;
+        }
+      }
+    };
 
-    selectAll('app_data').then(async (data) => {
+    intentarCargar().then(async (data) => {
       const m = data ? Object.fromEntries(data.map(r => [r.clave, r.valor])) : {};
 
       // Solo usamos Supabase si tiene productos reales (array con al menos 1 item)
