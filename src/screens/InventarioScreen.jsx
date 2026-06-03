@@ -14,10 +14,11 @@ const stepBtn = {
 };
 
 export default function InventarioScreen() {
-  const { productos, agregarProducto, moverStock, registrarMovimiento } = useApp();
+  const { productos, agregarProducto, moverStock, registrarMovimiento, editarProducto } = useApp();
   const [q, setQ]               = useState('');
   const [showAdd, setShowAdd]   = useState(false);
   const [stockSheet, setStockSheet] = useState(null);
+  const [editSheet, setEditSheet]   = useState(null);
   const [pubStatus, setPubStatus]   = useState(null); // null | 'loading' | 'ok' | 'error'
 
   const filtered = productos.filter(i => i.name.toLowerCase().includes(q.toLowerCase()));
@@ -28,6 +29,13 @@ export default function InventarioScreen() {
     agregarProducto(p);
     setShowAdd(false);
     await sendProducto(p);
+  };
+
+  const handleEdit = async (id, cambios) => {
+    const producto = productos.find(p => p.id === id);
+    editarProducto(id, cambios);
+    setEditSheet(null);
+    if (producto) await sendProducto({ ...producto, ...cambios });
   };
 
   const handlePublicar = async () => {
@@ -131,6 +139,17 @@ export default function InventarioScreen() {
                   >
                     MOVER
                   </button>
+                  <button
+                    onClick={() => setEditSheet(item)}
+                    style={{
+                      fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
+                      padding: '5px 10px', borderRadius: 6, cursor: 'pointer',
+                      background: 'rgba(0,212,255,0.1)', color: MACACO.cyan,
+                      border: '1px solid rgba(0,212,255,0.25)', fontFamily: 'inherit',
+                    }}
+                  >
+                    EDITAR
+                  </button>
                 </div>
               </div>
             </div>
@@ -201,6 +220,13 @@ export default function InventarioScreen() {
           producto={stockSheet}
           onClose={() => setStockSheet(null)}
           onMove={(delta, tipo) => handleMoverStock(stockSheet.id, delta, tipo)}
+        />
+      )}
+      {editSheet && (
+        <EditProductSheet
+          producto={editSheet}
+          onClose={() => setEditSheet(null)}
+          onSave={(cambios) => handleEdit(editSheet.id, cambios)}
         />
       )}
     </Screen>
@@ -328,6 +354,103 @@ function StockMoveSheet({ producto, onClose, onMove }) {
         }}
       >
         {tipo === 'compra' ? `INGRESAR +${delta}` : tipo === 'baja' ? `REGISTRAR BAJA −${delta}` : `REGISTRAR AUSPICIO −${delta}`}
+      </button>
+    </SheetBase>
+  );
+}
+
+function EditProductSheet({ producto, onClose, onSave }) {
+  const [cost,  setCost]  = useState(producto.cost);
+  const [price, setPrice] = useState(producto.price);
+
+  const margin   = price > 0 ? ((price - cost) / price * 100) : 0;
+  const changed  = cost !== producto.cost || price !== producto.price;
+  const canSave  = cost > 0 && price > 0 && changed;
+
+  const numInput = (val, setVal) => (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 4,
+      background: MACACO.cardElev, border: `1px solid ${MACACO.border}`,
+      borderRadius: 10, padding: '10px 12px',
+    }}>
+      <span style={{ color: MACACO.textMuted, fontSize: 15, fontWeight: 600 }}>$</span>
+      <input
+        type="text" inputMode="numeric"
+        value={val === 0 ? '' : val.toLocaleString('es-CL')}
+        placeholder="0"
+        onChange={e => setVal(parseInt(e.target.value.replace(/\D/g, ''), 10) || 0)}
+        style={{
+          flex: 1, background: 'transparent', border: 'none', color: '#fff',
+          fontSize: 16, fontWeight: 700, outline: 'none',
+          padding: 0, fontFamily: 'inherit', minWidth: 0, width: '100%',
+        }}
+      />
+    </div>
+  );
+
+  return (
+    <SheetBase onClose={onClose}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+        <div>
+          <div style={{ fontSize: 10.5, color: MACACO.cyan, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase' }}>Editar precios</div>
+          <div style={{ fontSize: 20, fontWeight: 800, marginTop: 4 }}>{producto.name}</div>
+        </div>
+        <button onClick={onClose} style={{
+          width: 32, height: 32, borderRadius: 999,
+          background: MACACO.cardElev, border: `1px solid ${MACACO.border}`,
+          color: '#fff', fontSize: 18, cursor: 'pointer', fontFamily: 'inherit',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
+        }}>×</button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+        <div>
+          <label style={{ fontSize: 11, color: MACACO.textDim, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Costo unitario</label>
+          {numInput(cost, setCost)}
+        </div>
+        <div>
+          <label style={{ fontSize: 11, color: MACACO.textDim, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Precio venta</label>
+          {numInput(price, setPrice)}
+        </div>
+      </div>
+
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(0,212,255,0.06), rgba(245,197,24,0.04))',
+        border: '1px solid rgba(0,212,255,0.2)',
+        borderRadius: 12, padding: 12, marginBottom: 18,
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+          <span style={{ fontSize: 11, color: MACACO.textDim, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Margen</span>
+          <span style={{ fontSize: 16, fontWeight: 800, color: margin > 0 ? MACACO.success : MACACO.textMuted }}>
+            {margin > 0 ? margin.toFixed(0) + '%' : '—'}
+          </span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 11.5, color: MACACO.textDim }}>Valor stock (costo)</span>
+          <span style={{ fontSize: 13, fontWeight: 700 }}>{clp(cost * producto.stock)}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+          <span style={{ fontSize: 11.5, color: MACACO.textDim }}>Valor stock (venta)</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: MACACO.cyan }}>{clp(price * producto.stock)}</span>
+        </div>
+      </div>
+
+      <button
+        onClick={() => canSave && onSave({ cost, price })}
+        disabled={!canSave}
+        style={{
+          width: '100%', padding: '15px',
+          background: canSave ? MACACO.cyan : MACACO.cardElev,
+          color: canSave ? '#0A0A0F' : MACACO.textMuted,
+          border: canSave ? 'none' : `1px solid ${MACACO.border}`,
+          borderRadius: 12,
+          fontSize: 13.5, fontWeight: 800, letterSpacing: '0.04em',
+          cursor: canSave ? 'pointer' : 'not-allowed',
+          fontFamily: 'inherit',
+          boxShadow: canSave ? `0 0 20px ${MACACO.cyan}44` : 'none',
+        }}
+      >
+        {canSave ? 'ACTUALIZAR PRECIOS' : 'SIN CAMBIOS'}
       </button>
     </SheetBase>
   );
