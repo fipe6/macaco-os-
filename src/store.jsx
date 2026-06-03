@@ -25,12 +25,9 @@ function guardar(key, value) {
 // ── Supabase: escribe UNA clave directamente ──────────────────────────────────
 // Cada acción llama esto explícitamente — sin depender de useEffect ni timing.
 async function pushDB(clave, valor) {
-  if (!db) return;
-  const { error } = await db
-    .from('app_data')
-    .upsert({ clave, valor, actualizado_en: new Date().toISOString() });
-  if (error) console.error('[db] ❌', clave, error.message);
-  else       console.log('[db] ✅', clave);
+  db.upsertRows('app_data', [{ clave, valor, actualizado_en: new Date().toISOString() }])
+    .then(() => console.log('[db] ✅', clave))
+    .catch(err => console.error('[db] ❌', clave, err.message));
 }
 
 // ── Estado inicial ────────────────────────────────────────────────────────────
@@ -96,31 +93,22 @@ export function AppProvider({ children }) {
   useEffect(() => {
     if (!db) { setCargandoDB(false); return; }
 
-    db.from('app_data').select('*').then(async ({ data, error }) => {
-      if (error) {
-        const msg = error.message || JSON.stringify(error);
-        console.error('[db] error al cargar:', msg);
-        setErrorDB(msg);
-        setCargandoDB(false);
-        return;
-      }
-
+    db.selectAll('app_data').then(async (data) => {
       if (data && data.length > 0) {
         // Supabase tiene datos → cargar en estado (fuente de verdad)
         const m = Object.fromEntries(data.map(r => [r.clave, r.valor]));
         const alerta = m[LS.config]?.alertaStockBajo ?? 3;
 
-        if (m[LS.ventas])      setVentas(m[LS.ventas]);
-        if (m[LS.productos])   setProductos(m[LS.productos].map(p => ({ ...p, status: calcStatus(p.stock, alerta) })));
-        if (m[LS.deudas])      setDeudas(m[LS.deudas]);
+        if (m[LS.ventas])       setVentas(m[LS.ventas]);
+        if (m[LS.productos])    setProductos(m[LS.productos].map(p => ({ ...p, status: calcStatus(p.stock, alerta) })));
+        if (m[LS.deudas])       setDeudas(m[LS.deudas]);
         if (m[LS.caja] != null) setCaja(m[LS.caja]);
-        if (m[LS.config])      setConfigRaw(m[LS.config]);
-        if (m[LS.movimientos]) setMovimientos(m[LS.movimientos]);
-        if (m[LS.gastos])      setGastos(m[LS.gastos]);
+        if (m[LS.config])       setConfigRaw(m[LS.config]);
+        if (m[LS.movimientos])  setMovimientos(m[LS.movimientos]);
+        if (m[LS.gastos])       setGastos(m[LS.gastos]);
         console.log('[db] ✅ datos restaurados desde Supabase');
       } else {
         // Primera vez: subir el estado actual a Supabase
-        console.log('[db] primera vez — subiendo estado inicial...');
         const estado = refs.current;
         const filas = [
           { clave: LS.ventas,      valor: estado.ventas },
@@ -132,15 +120,14 @@ export function AppProvider({ children }) {
           { clave: LS.gastos,      valor: estado.gastos },
         ].map(f => ({ ...f, actualizado_en: new Date().toISOString() }));
 
-        const { error: e } = await db.from('app_data').upsert(filas);
-        if (e) console.error('[db] ❌ error en push inicial:', e.message);
-        else   console.log('[db] ✅ push inicial completado');
+        await db.upsertRows('app_data', filas);
+        console.log('[db] ✅ push inicial completado');
       }
       setCargandoDB(false);
     }).catch(err => {
       const msg = err?.message || String(err);
-      console.error('[db] error de red:', msg);
-      setErrorDB('Red: ' + msg);
+      console.error('[db] error:', msg);
+      setErrorDB(msg);
       setCargandoDB(false);
     });
   }, []); // eslint-disable-line
