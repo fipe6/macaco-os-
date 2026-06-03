@@ -113,6 +113,8 @@ function DBStatusBadge({ error }) {
   );
 }
 
+const APP_VERSION = '1780517438';
+
 function AppInner() {
   const [screen, setScreen]           = useState('home');
   const [updateListo, setUpdateListo] = useState(false);
@@ -124,6 +126,22 @@ function AppInner() {
     window.addEventListener('online', onOnline);
     if (navigator.onLine) flushQueue();
     return () => window.removeEventListener('online', onOnline);
+  }, []);
+
+  // Verificación de versión — fuerza recarga si hay versión nueva en el servidor.
+  // Funciona aunque el service worker sirva código viejo.
+  useEffect(() => {
+    const checkVersion = async () => {
+      try {
+        const res = await fetch(`/version.json?t=${Date.now()}`, { cache: 'no-store' });
+        const { v } = await res.json();
+        if (v && v !== APP_VERSION) {
+          console.log('[version] nueva versión detectada, recargando...');
+          window.location.reload(true);
+        }
+      } catch { /* sin internet — no pasa nada */ }
+    };
+    checkVersion();
   }, []);
 
   // Cuando el service worker nuevo toma control → recargar automáticamente
