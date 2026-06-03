@@ -60,7 +60,8 @@ function DBStatusBadge({ error }) {
 }
 
 function AppInner() {
-  const [screen, setScreen] = useState('home');
+  const [screen, setScreen]           = useState('home');
+  const [updateListo, setUpdateListo] = useState(false);
   const { cargandoDB, errorDB } = useApp();
   const go = (s) => setScreen(s);
 
@@ -69,6 +70,33 @@ function AppInner() {
     window.addEventListener('online', onOnline);
     if (navigator.onLine) flushQueue();
     return () => window.removeEventListener('online', onOnline);
+  }, []);
+
+  // Cuando el service worker nuevo toma control → recargar automáticamente
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+
+    const onControllerChange = () => window.location.reload();
+    navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
+
+    // Si ya hay un SW esperando (versión nueva disponible) → activarlo ahora
+    navigator.serviceWorker.ready.then(reg => {
+      if (reg.waiting) {
+        setUpdateListo(true);
+        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      }
+      reg.addEventListener('updatefound', () => {
+        const sw = reg.installing;
+        sw?.addEventListener('statechange', () => {
+          if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+            setUpdateListo(true);
+            sw.postMessage({ type: 'SKIP_WAITING' });
+          }
+        });
+      });
+    });
+
+    return () => navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
   }, []);
 
   const screens = {
@@ -90,6 +118,18 @@ function AppInner() {
     }}>
       <IOSDevice width={390} height={844} dark>
         <div style={{ position: 'absolute', inset: 0, background: MACACO.bg, overflow: 'hidden' }}>
+
+          {/* Banner de actualización disponible */}
+          {updateListo && (
+            <div style={{
+              position: 'absolute', top: 0, left: 0, right: 0, zIndex: 300,
+              background: MACACO.primary, color: '#0A0A0F',
+              padding: '10px 16px', textAlign: 'center',
+              fontSize: 12, fontWeight: 700, letterSpacing: '0.04em',
+            }}>
+              Actualizando app...
+            </div>
+          )}
 
           {/* Spinner mientras carga Supabase */}
           {cargandoDB && <LoadingDB />}
