@@ -7,18 +7,20 @@ Deploy: https://macaco-os.vercel.app | Repo: https://github.com/fipe6/macaco-os-
 
 ## Backend
 - n8n en https://n8n.makakosuplementos.com
-- Webhooks activos: /webhook/macaco/venta | /webhook/macaco/inventario | /webhook/macaco/finanzas | /webhook/macaco/reporte-wsp | /webhook/macaco/catalogo-sync (Fase 3 — sync Supabase)
-- Persistencia primaria: localStorage del celular
-- Sin base de datos propia — n8n actúa como middleware
+- Webhooks activos: /webhook/macaco/venta | /webhook/macaco/inventario | /webhook/macaco/finanzas | /webhook/macaco/reporte-wsp | /webhook/macaco/catalogo-sync
+- **Persistencia:** localStorage (cache rápido) + Supabase (fuente de verdad durable)
+- Supabase Project: jmvbdjahitdhbvrfblnh | tabla: `app_data` (key-value jsonb)
+- Al iniciar: carga desde Supabase → sobreescribe localStorage. En cada write: actualiza ambos.
 
 ## Estructura del proyecto
 ```
 src/
-  screens/         — una pantalla por módulo
+  screens/         — una pantalla por módulo (incluye GastoScreen)
   components/      — BottomNav, IOSDevice, Screen, ui (Card, Icon, etc.)
-  services/        — webhook.js (cliente n8n con queue offline)
+  services/        — webhook.js (n8n), supabase.js (cliente singleton)
   theme.js         — design tokens MACACO.* + clp() + clpCompact()
-  App.jsx          — router simple por useState
+  App.jsx          — router + loading screen Supabase + badge DB SYNC
+  store.jsx        — estado global, sync localStorage+Supabase, helpers KPI
 ```
 
 ## Estado actual del código
