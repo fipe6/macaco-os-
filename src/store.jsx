@@ -91,8 +91,6 @@ export function AppProvider({ children }) {
 
   // ── Cargar desde Supabase al iniciar ──────────────────────────────────────
   useEffect(() => {
-    if (!db) { setCargandoDB(false); return; }
-
     // Test explícito de conexión antes de cargar datos
     testConnection()
       .then(() => console.log('[db] ✅ conexión OK'))
