@@ -7,13 +7,13 @@ import { useApp } from '../store.jsx';
 import {
   ventasDelDia, ventasDelMes, ventasUltimos7Dias,
   sumarTotal, sumarMargen, getDiasGraficoSemanal, getTopProductos,
-  calcMetricasInventario, getResumenClientes, MESES,
+  calcMetricasInventario, getResumenClientes, gastosDelMes, sumarGastos, MESES,
 } from '../store.jsx';
 
 const TABS = ['Diario', 'Semanal', 'Mensual', 'Clientes'];
 
 export default function ReportesScreen() {
-  const { ventas, movimientos, productos, config } = useApp();
+  const { ventas, movimientos, productos, config, gastos } = useApp();
   const [tab,     setTab]     = useState('Mensual');
   const [sending, setSending] = useState(false);
 
@@ -65,7 +65,7 @@ export default function ReportesScreen() {
       <div style={{ animation: 'fadeUp 320ms cubic-bezier(.2,.7,.2,1)' }}>
         {tab === 'Diario'   && <ReporteDiario  ventas={ventas} config={config} />}
         {tab === 'Semanal'  && <ReporteSemanal ventas={ventas} config={config} />}
-        {tab === 'Mensual'  && <ReporteMensual ventas={ventas} movimientos={movimientos} productos={productos} config={config} />}
+        {tab === 'Mensual'  && <ReporteMensual ventas={ventas} movimientos={movimientos} productos={productos} config={config} gastos={gastos} />}
         {tab === 'Clientes' && <ClientesTab    ventas={ventas} />}
       </div>
 
@@ -186,7 +186,7 @@ function ReporteSemanal({ ventas, config }) {
 
 // ─── Mensual ──────────────────────────────────────────────────────────────────
 
-function ReporteMensual({ ventas, movimientos, productos, config }) {
+function ReporteMensual({ ventas, movimientos, productos, config, gastos }) {
   const hoy    = new Date();
   const vMes   = ventasDelMes(ventas);
   const total  = sumarTotal(vMes);
@@ -199,6 +199,17 @@ function ReporteMensual({ ventas, movimientos, productos, config }) {
     calcMetricasInventario(ventas, movimientos, productos, hoy);
 
   const margenPct = total > 0 ? (margen / total * 100) : 0;
+
+  // Gastos del mes
+  const gMes            = gastosDelMes(gastos, hoy);
+  const gastosNegocio   = sumarGastos(gMes.filter(g => g.tipo === 'negocio'));
+  const gastosPersonal  = sumarGastos(gMes.filter(g => g.tipo === 'personal'));
+  const gananciaNeta    = total - cogsMes - gastosNegocio;
+  const ratioGastos     = total > 0 ? (gastosNegocio / total) * 100 : 0;
+  const hayGastos       = gastosNegocio > 0 || gastosPersonal > 0;
+
+  // Máximo para escalar el gráfico
+  const maxGasto = Math.max(gastosNegocio, gastosPersonal, 1);
 
   return (
     <>
@@ -219,6 +230,89 @@ function ReporteMensual({ ventas, movimientos, productos, config }) {
         <KpiTile label="Transacciones"  value={String(vMes.length)} color={MACACO.cyan} />
         <KpiTile label="COGS del mes"   value={cogsMes > 0 ? clpCompact(cogsMes) : '—'} color={MACACO.danger} />
       </div>
+
+      {/* Resultado neto real */}
+      <SectionTitle>Resultado neto real</SectionTitle>
+      <Card style={{
+        marginBottom: 12,
+        background: gananciaNeta >= 0
+          ? 'linear-gradient(135deg, rgba(0,230,118,0.06), rgba(0,230,118,0.01))'
+          : 'linear-gradient(135deg, rgba(255,77,77,0.06), rgba(255,77,77,0.01))',
+        borderColor: gananciaNeta >= 0 ? 'rgba(0,230,118,0.25)' : 'rgba(255,77,77,0.25)',
+      }} padding={18}>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14 }}>
+          <div>
+            <div style={{ fontSize: 11, color: MACACO.textDim, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 4 }}>
+              Ganancia neta
+            </div>
+            <div style={{ fontSize: 30, fontWeight: 800, letterSpacing: '-0.03em', fontVariantNumeric: 'tabular-nums', color: gananciaNeta >= 0 ? MACACO.success : MACACO.danger }}>
+              {clp(gananciaNeta)}
+            </div>
+          </div>
+          {total > 0 && gastosNegocio > 0 && (
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 10, color: MACACO.textMuted, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                Ratio gastos
+              </div>
+              <div style={{ fontSize: 20, fontWeight: 800, marginTop: 2, color: ratioGastos > 50 ? MACACO.danger : ratioGastos > 25 ? MACACO.orange : MACACO.success }}>
+                {ratioGastos.toFixed(0)}%
+              </div>
+            </div>
+          )}
+        </div>
+        {/* Desglose */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {[
+            { label: 'Ventas',         val: total,          color: MACACO.success },
+            { label: 'COGS',           val: -cogsMes,       color: MACACO.danger },
+            { label: 'Gastos negocio', val: -gastosNegocio, color: MACACO.orange },
+          ].map(({ label, val, color }) => (
+            <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontSize: 12, color: MACACO.textDim }}>{label}</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color, fontVariantNumeric: 'tabular-nums' }}>
+                {val >= 0 ? clp(val) : `−${clp(Math.abs(val))}`}
+              </div>
+            </div>
+          ))}
+          <div style={{ height: 1, background: 'rgba(255,255,255,0.1)', margin: '4px 0' }} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>Neto</div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: gananciaNeta >= 0 ? MACACO.success : MACACO.danger, fontVariantNumeric: 'tabular-nums' }}>
+              {gananciaNeta >= 0 ? clp(gananciaNeta) : `−${clp(Math.abs(gananciaNeta))}`}
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* Gráfico gastos negocio vs personal */}
+      {hayGastos && (
+        <Card style={{ marginBottom: 14 }} padding={16}>
+          <div style={{ fontSize: 10.5, color: MACACO.textDim, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 14 }}>
+            Gastos del mes
+          </div>
+          {[
+            { label: 'Negocio', val: gastosNegocio,  color: MACACO.orange },
+            { label: 'Personal', val: gastosPersonal, color: MACACO.cyan },
+          ].map(({ label, val, color }) => {
+            const pctBar = (val / maxGasto) * 100;
+            return (
+              <div key={label} style={{ marginBottom: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+                  <div style={{ fontSize: 12, color: MACACO.textDim, fontWeight: 500 }}>{label}</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color, fontVariantNumeric: 'tabular-nums' }}>{val > 0 ? clp(val) : '—'}</div>
+                </div>
+                <div style={{ height: 8, background: 'rgba(255,255,255,0.06)', borderRadius: 999, overflow: 'hidden' }}>
+                  <div style={{
+                    width: pctBar + '%', height: '100%', background: color,
+                    borderRadius: 999, boxShadow: `0 0 10px ${color}66`,
+                    transition: 'width 800ms cubic-bezier(.2,.7,.2,1)',
+                  }} />
+                </div>
+              </div>
+            );
+          })}
+        </Card>
+      )}
 
       <SectionTitle>Métricas de inventario</SectionTitle>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>

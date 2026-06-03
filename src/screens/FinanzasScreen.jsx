@@ -4,19 +4,34 @@ import { Card, SectionTitle, Progress, Dot, Icon } from '../components/ui.jsx';
 import { Screen } from '../components/Screen.jsx';
 import { sendDeudaUpdate } from '../services/webhook.js';
 import { useApp } from '../store.jsx';
+import { gastosDelMes, sumarGastos, MESES } from '../store.jsx';
+
+const ALERTA_GASTOS_NEGOCIO = 273_000;
 
 export default function FinanzasScreen() {
-  const { deudas, caja, config, pagarDeuda, ajustarCaja } = useApp();
-  const [pagoSheet, setPagoSheet]   = useState(null); // deuda seleccionada
+  const { deudas, caja, config, gastos, pagarDeuda, ajustarCaja } = useApp();
+  const [pagoSheet, setPagoSheet]   = useState(null);
   const [ajusteCaja, setAjusteCaja] = useState(false);
+  const [gastosExpanded, setGastosExpanded] = useState(false);
 
-  const totalDebt         = deudas.reduce((s, d) => s + d.amt, 0);
-  const totalDeudaPagada  = 0; // historial en Fase 2
-  const deudaConInteres   = deudas.filter(d => d.rate > 0);
-  const interesTotal      = deudaConInteres.reduce((s, d) => s + d.amt * d.rate / 100, 0);
-  const pctCaja           = Math.min(100, (caja / 800_000) * 100);
-  const cajaSalud         = caja >= 600_000 ? 'Saludable' : caja >= config.colchonMinimo ? 'OK' : 'Crítica';
-  const cajaSaludColor    = caja >= 600_000 ? MACACO.success : caja >= config.colchonMinimo ? MACACO.primary : MACACO.danger;
+  const totalDebt       = deudas.reduce((s, d) => s + d.amt, 0);
+  const deudaConInteres = deudas.filter(d => d.rate > 0);
+  const interesTotal    = deudaConInteres.reduce((s, d) => s + d.amt * d.rate / 100, 0);
+  const pctCaja         = Math.min(100, (caja / 800_000) * 100);
+  const cajaSalud       = caja >= 600_000 ? 'Saludable' : caja >= config.colchonMinimo ? 'OK' : 'Crítica';
+  const cajaSaludColor  = caja >= 600_000 ? MACACO.success : caja >= config.colchonMinimo ? MACACO.primary : MACACO.danger;
+
+  // Gastos del mes actual y anterior
+  const hoy             = new Date();
+  const fechaAnt        = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
+  const gMes            = gastosDelMes(gastos, hoy);
+  const gMesAnt         = gastosDelMes(gastos, fechaAnt);
+  const totalNegocio    = sumarGastos(gMes.filter(g => g.tipo === 'negocio'));
+  const totalPersonal   = sumarGastos(gMes.filter(g => g.tipo === 'personal'));
+  const totalGastosMes  = totalNegocio + totalPersonal;
+  const totalNegocioAnt = sumarGastos(gMesAnt.filter(g => g.tipo === 'negocio'));
+  const totalPersonalAnt= sumarGastos(gMesAnt.filter(g => g.tipo === 'personal'));
+  const mesNombre       = MESES[hoy.getMonth()];
 
   const handlePago = async (id, monto) => {
     pagarDeuda(id, monto);
@@ -109,13 +124,114 @@ export default function FinanzasScreen() {
       </div>
 
       <SectionTitle>Objetivos</SectionTitle>
-      <Card style={{ marginBottom: 10 }}>
+      <Card style={{ marginBottom: 18 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
           <div style={{ fontSize: 13, fontWeight: 600 }}>Eliminar deuda total</div>
           <div style={{ fontSize: 12, color: MACACO.textMuted }}>{clp(0)} / {clp(totalDebt)}</div>
         </div>
         <Progress value={0} color={MACACO.danger} height={6} />
       </Card>
+
+      {/* Gastos del mes */}
+      <SectionTitle right={totalGastosMes > 0 ? clp(totalGastosMes) + ' total' : undefined}>
+        Gastos · {mesNombre}
+      </SectionTitle>
+
+      {/* Alerta si gastos negocio superan el umbral */}
+      {totalNegocio > ALERTA_GASTOS_NEGOCIO && (
+        <Card
+          accent='rgba(255,159,64,0.4)'
+          style={{ marginBottom: 12, background: 'linear-gradient(135deg, rgba(255,159,64,0.08), rgba(255,159,64,0.02))' }}
+        >
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: 10, flexShrink: 0,
+              background: 'rgba(255,159,64,0.15)', color: MACACO.orange,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Icon.warn size={17} />
+            </div>
+            <div>
+              <div style={{ fontSize: 10.5, color: MACACO.orange, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 4 }}>
+                Gastos negocio superaron el umbral
+              </div>
+              <div style={{ fontSize: 13, color: '#fff', lineHeight: 1.45 }}>
+                <b style={{ fontVariantNumeric: 'tabular-nums' }}>{clp(totalNegocio)}</b> vs límite{' '}
+                <b style={{ color: MACACO.orange }}>{clp(ALERTA_GASTOS_NEGOCIO)}/mes</b>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* KPI tiles negocio / personal */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+        <GastoTile
+          label="Negocio"
+          monto={totalNegocio}
+          montoAnt={totalNegocioAnt}
+          color={MACACO.orange}
+        />
+        <GastoTile
+          label="Personal"
+          monto={totalPersonal}
+          montoAnt={totalPersonalAnt}
+          color={MACACO.cyan}
+        />
+      </div>
+
+      {/* Lista de gastos */}
+      {gMes.length === 0 ? (
+        <Card style={{ marginBottom: 18 }}>
+          <div style={{ textAlign: 'center', padding: '12px 0', color: MACACO.textMuted, fontSize: 12 }}>
+            Sin gastos registrados este mes
+          </div>
+        </Card>
+      ) : (
+        <Card padding={0} style={{ marginBottom: 18 }}>
+          {(gastosExpanded ? gMes : gMes.slice(0, 5)).map((g, i, arr) => {
+            const isLast = i === arr.length - 1 && (!gastosExpanded || gMes.length <= 5);
+            const color  = g.tipo === 'negocio' ? MACACO.orange : MACACO.cyan;
+            const fecha  = new Date(g.fecha).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' });
+            return (
+              <div key={g.id} style={{
+                display: 'flex', alignItems: 'center', padding: '12px 14px', gap: 10,
+                borderBottom: isLast ? 'none' : `1px solid ${MACACO.borderSoft}`,
+              }}>
+                <div style={{
+                  width: 8, height: 8, borderRadius: 999, flexShrink: 0,
+                  background: color, boxShadow: `0 0 6px ${color}88`,
+                }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {g.categoria}
+                  </div>
+                  {g.descripcion && (
+                    <div style={{ fontSize: 11, color: MACACO.textMuted, marginTop: 1 }}>{g.descripcion}</div>
+                  )}
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                    {clp(g.monto)}
+                  </div>
+                  <div style={{ fontSize: 10, color: MACACO.textMuted, marginTop: 1 }}>{fecha}</div>
+                </div>
+              </div>
+            );
+          })}
+          {gMes.length > 5 && (
+            <button onClick={() => setGastosExpanded(e => !e)} style={{
+              width: '100%', padding: '11px',
+              background: 'transparent', border: 'none',
+              borderTop: `1px solid ${MACACO.borderSoft}`,
+              color: MACACO.textDim, fontSize: 12, fontWeight: 600,
+              cursor: 'pointer', fontFamily: 'inherit',
+            }}>
+              {gastosExpanded ? 'Ver menos' : `Ver los ${gMes.length} gastos`}
+            </button>
+          )}
+        </Card>
+      )}
 
       {pagoSheet && (
         <PagoSheet deuda={pagoSheet} onClose={() => setPagoSheet(null)} onPagar={handlePago} caja={caja} />
@@ -124,6 +240,38 @@ export default function FinanzasScreen() {
         <AjusteCajaSheet cajaActual={caja} onClose={() => setAjusteCaja(false)} onSave={(v) => { ajustarCaja(v); setAjusteCaja(false); }} />
       )}
     </Screen>
+  );
+}
+
+function GastoTile({ label, monto, montoAnt, color }) {
+  const diff    = monto - montoAnt;
+  const hasPrev = montoAnt > 0 || monto > 0;
+
+  return (
+    <div style={{
+      background: MACACO.card, border: `1px solid ${MACACO.border}`,
+      borderRadius: 14, padding: 14, position: 'relative', overflow: 'hidden',
+    }}>
+      <div style={{
+        position: 'absolute', top: 0, left: 0, width: 3, height: 26,
+        background: color, borderRadius: '0 4px 4px 0',
+        boxShadow: `0 0 10px ${color}`,
+      }} />
+      <div style={{ fontSize: 10, color: MACACO.textMuted, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+        {label}
+      </div>
+      <div style={{ fontSize: 20, fontWeight: 800, marginTop: 6, fontVariantNumeric: 'tabular-nums', color: monto > 0 ? '#fff' : MACACO.textMuted }}>
+        {monto > 0 ? clp(monto) : '$0'}
+      </div>
+      {hasPrev && montoAnt > 0 && (
+        <div style={{ fontSize: 10, marginTop: 4, fontVariantNumeric: 'tabular-nums', color: diff > 0 ? MACACO.danger : MACACO.success, fontWeight: 600 }}>
+          {diff > 0 ? '+' : ''}{clp(diff)} vs mes ant.
+        </div>
+      )}
+      {montoAnt === 0 && monto === 0 && (
+        <div style={{ fontSize: 10, marginTop: 4, color: MACACO.textMuted }}>Sin gastos</div>
+      )}
+    </div>
   );
 }
 

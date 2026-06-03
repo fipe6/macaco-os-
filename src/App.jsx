@@ -9,6 +9,7 @@ import FinanzasScreen from './screens/FinanzasScreen.jsx';
 import InventarioScreen from './screens/InventarioScreen.jsx';
 import ReportesScreen from './screens/ReportesScreen.jsx';
 import ConfigScreen from './screens/ConfigScreen.jsx';
+import GastoScreen from './screens/GastoScreen.jsx';
 import { flushQueue } from './services/webhook.js';
 
 export default function App() {
@@ -26,6 +27,7 @@ export default function App() {
   const screens = {
     home: <HomeScreen go={go} />,
     venta: <VentaScreen go={go} />,
+    gasto: <GastoScreen go={go} />,
     finanzas: <FinanzasScreen go={go} />,
     inventario: <InventarioScreen go={go} />,
     reportes: <ReportesScreen go={go} />,
@@ -56,29 +58,54 @@ export default function App() {
           </div>
 
           {screen === 'home' && (
-            <button
-              onClick={() => go('venta')}
-              style={{
-                position: 'absolute', right: 18, bottom: 102, zIndex: 30,
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: '14px 18px', borderRadius: 999,
-                background: MACACO.primary, color: '#0A0A0F',
-                border: 'none', cursor: 'pointer',
-                fontFamily: 'inherit', fontSize: 13, fontWeight: 800,
-                letterSpacing: '0.04em',
-                boxShadow: `0 8px 24px rgba(245,197,24,0.4), 0 0 30px rgba(245,197,24,0.3)`,
-                animation: 'fabIn 400ms cubic-bezier(.2,.7,.2,1) both',
-              }}
-            >
-              <span style={{
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                width: 22, height: 22, borderRadius: 999, background: '#0A0A0F',
-                color: MACACO.primary,
-              }}>
-                <Icon.plus size={14} />
-              </span>
-              REGISTRAR VENTA
-            </button>
+            <div style={{
+              position: 'absolute', right: 18, bottom: 102, zIndex: 30,
+              display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10,
+              animation: 'fabIn 400ms cubic-bezier(.2,.7,.2,1) both',
+            }}>
+              <button
+                onClick={() => go('gasto')}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '11px 16px', borderRadius: 999,
+                  background: MACACO.cardElev, color: MACACO.orange,
+                  border: `1px solid rgba(255,159,64,0.35)`, cursor: 'pointer',
+                  fontFamily: 'inherit', fontSize: 12, fontWeight: 700,
+                  letterSpacing: '0.04em',
+                  boxShadow: `0 4px 16px rgba(0,0,0,0.4), 0 0 20px rgba(255,159,64,0.15)`,
+                }}
+              >
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  width: 20, height: 20, borderRadius: 999,
+                  background: 'rgba(255,159,64,0.18)', color: MACACO.orange,
+                }}>
+                  <Icon.minus size={12} />
+                </span>
+                REGISTRAR GASTO
+              </button>
+              <button
+                onClick={() => go('venta')}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '14px 18px', borderRadius: 999,
+                  background: MACACO.primary, color: '#0A0A0F',
+                  border: 'none', cursor: 'pointer',
+                  fontFamily: 'inherit', fontSize: 13, fontWeight: 800,
+                  letterSpacing: '0.04em',
+                  boxShadow: `0 8px 24px rgba(245,197,24,0.4), 0 0 30px rgba(245,197,24,0.3)`,
+                }}
+              >
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  width: 22, height: 22, borderRadius: 999, background: '#0A0A0F',
+                  color: MACACO.primary,
+                }}>
+                  <Icon.plus size={14} />
+                </span>
+                REGISTRAR VENTA
+              </button>
+            </div>
           )}
 
           <BottomNav active={screen} go={go} />

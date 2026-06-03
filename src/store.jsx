@@ -7,6 +7,7 @@ const LS = {
   caja:        'macaco:caja',
   config:      'macaco:config',
   movimientos: 'macaco:movimientos',
+  gastos:      'macaco:gastos',
 };
 
 function leer(key, fallback) {
@@ -62,6 +63,7 @@ export function AppProvider({ children }) {
   const [caja,        setCaja]        = useState(() => leer(LS.caja,        503_000));
   const [config,      setConfigRaw]   = useState(() => leer(LS.config,      CONFIG_INICIAL));
   const [movimientos, setMovimientos] = useState(() => leer(LS.movimientos, []));
+  const [gastos,      setGastos]      = useState(() => leer(LS.gastos,      []));
 
   useEffect(() => guardar(LS.productos,   productos),   [productos]);
   useEffect(() => guardar(LS.ventas,      ventas),      [ventas]);
@@ -69,6 +71,7 @@ export function AppProvider({ children }) {
   useEffect(() => guardar(LS.caja,        caja),        [caja]);
   useEffect(() => guardar(LS.config,      config),      [config]);
   useEffect(() => guardar(LS.movimientos, movimientos), [movimientos]);
+  useEffect(() => guardar(LS.gastos,      gastos),      [gastos]);
 
   const registrarVenta = useCallback((venta) => {
     const nueva = { ...venta, id: Date.now().toString(), fecha: new Date().toISOString() };
@@ -121,6 +124,28 @@ export function AppProvider({ children }) {
     }, ...prev]);
   }, []);
 
+  const cancelarVenta = useCallback((ventaId) => {
+    setVentas(prev => {
+      const venta = prev.find(v => v.id === ventaId);
+      if (!venta) return prev;
+      setProductos(ps => ps.map(p => {
+        if (p.id !== venta.productoId) return p;
+        const nuevoStock = p.stock + venta.cantidad;
+        return { ...p, stock: nuevoStock, status: calcStatus(nuevoStock, config.alertaStockBajo) };
+      }));
+      setCaja(c => Math.max(0, c - venta.total));
+      return prev.filter(v => v.id !== ventaId);
+    });
+  }, [config.alertaStockBajo]);
+
+  const registrarGasto = useCallback((gasto) => {
+    const nuevo = { ...gasto, id: Date.now().toString(), fecha: new Date().toISOString() };
+    setGastos(prev => [nuevo, ...prev]);
+    if (gasto.tipo === 'negocio') {
+      setCaja(prev => Math.max(0, prev - gasto.monto));
+    }
+  }, []);
+
   const ajustarCaja = useCallback((valor) => setCaja(valor), []);
 
   const setConfig = useCallback((cambios) => {
@@ -129,9 +154,9 @@ export function AppProvider({ children }) {
 
   return (
     <AppContext.Provider value={{
-      productos, ventas, deudas, caja, config, movimientos,
-      registrarVenta, agregarProducto, moverStock, editarProducto,
-      registrarMovimiento, pagarDeuda, ajustarCaja, setConfig,
+      productos, ventas, deudas, caja, config, movimientos, gastos,
+      registrarVenta, cancelarVenta, agregarProducto, moverStock, editarProducto,
+      registrarMovimiento, pagarDeuda, ajustarCaja, setConfig, registrarGasto,
     }}>
       {children}
     </AppContext.Provider>
@@ -256,6 +281,21 @@ export function calcMetricasInventario(ventas, movimientos, productos, fecha = n
   const dsi      = rotacion > 0           ? Math.round(30 / rotacion)                    : null;
 
   return { cogsMes, unidadesVendidas, unidadesRecibidas, inventarioActual, str, rotacion, dsi };
+}
+
+// ── Módulo de Gastos ─────────────────────────────────────────────────────────
+
+export function gastosDelMes(gastos, fecha = new Date()) {
+  const mes = fecha.getMonth();
+  const año = fecha.getFullYear();
+  return gastos.filter(g => {
+    const d = new Date(g.fecha);
+    return d.getMonth() === mes && d.getFullYear() === año;
+  });
+}
+
+export function sumarGastos(lista) {
+  return lista.reduce((s, g) => s + g.monto, 0);
 }
 
 // ── Módulo de Clientes ────────────────────────────────────────────────────────

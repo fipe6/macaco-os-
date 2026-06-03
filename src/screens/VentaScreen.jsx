@@ -14,7 +14,7 @@ const stepBtn = {
 };
 
 export default function VentaScreen({ go }) {
-  const { productos, registrarVenta, registrarMovimiento } = useApp();
+  const { productos, ventas, registrarVenta, cancelarVenta, registrarMovimiento } = useApp();
   const disponibles = productos.filter(p => p.stock > 0);
 
   const [productId, setProductId] = useState(disponibles[0]?.id || '');
@@ -268,6 +268,73 @@ export default function VentaScreen({ go }) {
         <Dot color={MACACO.success} size={6} />
         Guarda en dispositivo · sincroniza con n8n
       </div>
+
+      <UltimasVentas ventas={ventas} onCancelar={cancelarVenta} />
     </Screen>
+  );
+}
+
+function UltimasVentas({ ventas, onCancelar }) {
+  const [confirmId, setConfirmId] = useState(null);
+  const recientes = ventas.slice(0, 5);
+  if (recientes.length === 0) return null;
+
+  return (
+    <>
+      <div style={{ height: 1, background: MACACO.borderSoft, margin: '20px 0 16px' }} />
+      <SectionTitle>Últimas ventas</SectionTitle>
+      <Card padding={0} style={{ marginBottom: 8 }}>
+        {recientes.map((v, i) => {
+          const fecha = new Date(v.fecha).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+          const dia   = new Date(v.fecha).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' });
+          const esHoy = new Date(v.fecha).toDateString() === new Date().toDateString();
+          return (
+            <div key={v.id} style={{
+              display: 'flex', alignItems: 'center', padding: '11px 14px', gap: 10,
+              borderBottom: i === recientes.length - 1 ? 'none' : `1px solid ${MACACO.borderSoft}`,
+            }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {v.producto}
+                </div>
+                <div style={{ fontSize: 11, color: MACACO.textMuted, marginTop: 1 }}>
+                  ×{v.cantidad} · {esHoy ? fecha : dia}
+                  {v.cliente ? ` · ${v.cliente}` : ''}
+                </div>
+              </div>
+              <div style={{ fontSize: 13.5, fontWeight: 700, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+                {clp(v.total)}
+              </div>
+              {confirmId === v.id ? (
+                <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                  <button onClick={() => { onCancelar(v.id); setConfirmId(null); }} style={{
+                    padding: '5px 10px', borderRadius: 7,
+                    background: 'rgba(255,77,77,0.15)', border: '1px solid rgba(255,77,77,0.4)',
+                    color: MACACO.danger, fontSize: 11, fontWeight: 700,
+                    cursor: 'pointer', fontFamily: 'inherit',
+                  }}>Sí</button>
+                  <button onClick={() => setConfirmId(null)} style={{
+                    padding: '5px 8px', borderRadius: 7,
+                    background: MACACO.cardElev, border: `1px solid ${MACACO.border}`,
+                    color: MACACO.textMuted, fontSize: 11, fontWeight: 600,
+                    cursor: 'pointer', fontFamily: 'inherit',
+                  }}>No</button>
+                </div>
+              ) : (
+                <button onClick={() => setConfirmId(v.id)} style={{
+                  padding: '5px 10px', borderRadius: 7,
+                  background: 'transparent', border: `1px solid ${MACACO.border}`,
+                  color: MACACO.textMuted, fontSize: 10.5, fontWeight: 600,
+                  cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0,
+                }}>Anular</button>
+              )}
+            </div>
+          );
+        })}
+      </Card>
+      <div style={{ fontSize: 11, color: MACACO.textMuted, textAlign: 'center', marginBottom: 8 }}>
+        Anular devuelve el stock y ajusta la caja
+      </div>
+    </>
   );
 }
