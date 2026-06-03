@@ -94,18 +94,23 @@ export function AppProvider({ children }) {
     if (!db) { setCargandoDB(false); return; }
 
     db.selectAll('app_data').then(async (data) => {
-      if (data && data.length > 0) {
-        // Supabase tiene datos → cargar en estado (fuente de verdad)
-        const m = Object.fromEntries(data.map(r => [r.clave, r.valor]));
+      const m = data ? Object.fromEntries(data.map(r => [r.clave, r.valor])) : {};
+
+      // Solo usamos Supabase si tiene productos reales (array con al menos 1 item)
+      // Evita cargar filas de prueba o datos parciales como fuente de verdad
+      const tieneRealData = Array.isArray(m[LS.productos]) && m[LS.productos].length > 0;
+
+      if (tieneRealData) {
+        // Supabase tiene datos reales → cargar en estado (fuente de verdad)
         const alerta = m[LS.config]?.alertaStockBajo ?? 3;
 
-        if (m[LS.ventas])       setVentas(m[LS.ventas]);
-        if (m[LS.productos])    setProductos(m[LS.productos].map(p => ({ ...p, status: calcStatus(p.stock, alerta) })));
-        if (m[LS.deudas])       setDeudas(m[LS.deudas]);
-        if (m[LS.caja] != null) setCaja(m[LS.caja]);
-        if (m[LS.config])       setConfigRaw(m[LS.config]);
-        if (m[LS.movimientos])  setMovimientos(m[LS.movimientos]);
-        if (m[LS.gastos])       setGastos(m[LS.gastos]);
+        setProductos(m[LS.productos].map(p => ({ ...p, status: calcStatus(p.stock, alerta) })));
+        if (Array.isArray(m[LS.ventas]))      setVentas(m[LS.ventas]);
+        if (Array.isArray(m[LS.deudas]))      setDeudas(m[LS.deudas]);
+        if (m[LS.caja] != null)               setCaja(m[LS.caja]);
+        if (m[LS.config])                     setConfigRaw(m[LS.config]);
+        if (Array.isArray(m[LS.movimientos])) setMovimientos(m[LS.movimientos]);
+        if (Array.isArray(m[LS.gastos]))      setGastos(m[LS.gastos]);
         console.log('[db] ✅ datos restaurados desde Supabase');
       } else {
         // Primera vez: subir el estado actual a Supabase
