@@ -11,12 +11,59 @@ import ReportesScreen from './screens/ReportesScreen.jsx';
 import ConfigScreen from './screens/ConfigScreen.jsx';
 import GastoScreen from './screens/GastoScreen.jsx';
 import { flushQueue } from './services/webhook.js';
+import { DB_HABILITADO } from './services/supabase.js';
+import { useApp } from './store.jsx';
 
-export default function App() {
+function LoadingDB() {
+  return (
+    <div style={{
+      position: 'absolute', inset: 0, zIndex: 200,
+      background: MACACO.bg,
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center', gap: 16,
+    }}>
+      <div style={{ fontSize: 36 }}>🦁</div>
+      <div style={{
+        width: 36, height: 36, borderRadius: 999,
+        border: `3px solid ${MACACO.border}`,
+        borderTopColor: MACACO.primary,
+        animation: 'spin 700ms linear infinite',
+      }} />
+      <div style={{ fontSize: 13, color: MACACO.textDim, fontWeight: 600 }}>Cargando datos...</div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
+
+function DBStatusBadge({ error }) {
+  if (!DB_HABILITADO) return null;
+  return (
+    <div style={{
+      position: 'absolute', top: 12, right: 14, zIndex: 50,
+      display: 'flex', alignItems: 'center', gap: 5,
+      padding: '3px 9px', borderRadius: 999,
+      background: error ? 'rgba(255,77,77,0.12)' : 'rgba(0,230,118,0.10)',
+      border: `1px solid ${error ? 'rgba(255,77,77,0.3)' : 'rgba(0,230,118,0.25)'}`,
+      fontSize: 9.5, fontWeight: 700, letterSpacing: '0.06em',
+      color: error ? MACACO.danger : MACACO.success,
+      pointerEvents: 'none',
+    }}>
+      <span style={{
+        width: 5, height: 5, borderRadius: 999,
+        background: error ? MACACO.danger : MACACO.success,
+        boxShadow: `0 0 6px ${error ? MACACO.danger : MACACO.success}`,
+        display: 'inline-block',
+      }} />
+      {error ? 'DB OFFLINE' : 'DB SYNC'}
+    </div>
+  );
+}
+
+function AppInner() {
   const [screen, setScreen] = useState('home');
+  const { cargandoDB, errorDB } = useApp();
   const go = (s) => setScreen(s);
 
-  // intentar enviar eventos en cola al volver online
   useEffect(() => {
     const onOnline = () => flushQueue();
     window.addEventListener('online', onOnline);
@@ -25,13 +72,13 @@ export default function App() {
   }, []);
 
   const screens = {
-    home: <HomeScreen go={go} />,
-    venta: <VentaScreen go={go} />,
-    gasto: <GastoScreen go={go} />,
-    finanzas: <FinanzasScreen go={go} />,
+    home:       <HomeScreen go={go} />,
+    venta:      <VentaScreen go={go} />,
+    gasto:      <GastoScreen go={go} />,
+    finanzas:   <FinanzasScreen go={go} />,
     inventario: <InventarioScreen go={go} />,
-    reportes: <ReportesScreen go={go} />,
-    config: <ConfigScreen go={go} />,
+    reportes:   <ReportesScreen go={go} />,
+    config:     <ConfigScreen go={go} />,
   };
 
   const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 480px)').matches;
@@ -42,9 +89,14 @@ export default function App() {
       alignItems: 'flex-start', padding: isMobile ? 0 : '40px 16px 80px',
     }}>
       <IOSDevice width={390} height={844} dark>
-        <div style={{
-          position: 'absolute', inset: 0, background: MACACO.bg, overflow: 'hidden',
-        }}>
+        <div style={{ position: 'absolute', inset: 0, background: MACACO.bg, overflow: 'hidden' }}>
+
+          {/* Spinner mientras carga Supabase */}
+          {cargandoDB && <LoadingDB />}
+
+          {/* Badge de estado de conexión */}
+          {!cargandoDB && <DBStatusBadge error={errorDB} />}
+
           <div
             key={screen}
             style={{
@@ -57,7 +109,7 @@ export default function App() {
             {screens[screen]}
           </div>
 
-          {screen === 'home' && (
+          {screen === 'home' && !cargandoDB && (
             <div style={{
               position: 'absolute', right: 18, bottom: 102, zIndex: 30,
               display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10,
@@ -114,3 +166,6 @@ export default function App() {
     </div>
   );
 }
+
+// AppInner está dentro de AppProvider (en main.jsx) y puede usar useApp
+export default AppInner;

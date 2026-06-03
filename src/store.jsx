@@ -1,5 +1,7 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { db } from './services/supabase.js';
 
+// ── Claves localStorage ───────────────────────────────────────────────────────
 const LS = {
   productos:   'macaco:productos',
   ventas:      'macaco:ventas',
@@ -21,6 +23,18 @@ function guardar(key, value) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
 }
 
+// Sincroniza un valor a Supabase en segundo plano (fire-and-forget)
+function syncDB(clave, valor) {
+  if (!db) return;
+  db.from('app_data')
+    .upsert({ clave, valor, actualizado_en: new Date().toISOString() })
+    .then(({ error }) => {
+      if (error) console.error('[db] sync error', clave, error);
+      else console.log('[db] synced:', clave);
+    });
+}
+
+// ── Estado inicial ────────────────────────────────────────────────────────────
 export function calcStatus(stock, alerta = 3) {
   if (stock === 0) return 'out';
   if (stock <= alerta) return 'low';
@@ -54,6 +68,7 @@ const CONFIG_INICIAL = {
   alertaStockBajo: 3,
 };
 
+// ── Context ───────────────────────────────────────────────────────────────────
 const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
@@ -65,14 +80,104 @@ export function AppProvider({ children }) {
   const [movimientos, setMovimientos] = useState(() => leer(LS.movimientos, []));
   const [gastos,      setGastos]      = useState(() => leer(LS.gastos,      []));
 
-  useEffect(() => guardar(LS.productos,   productos),   [productos]);
-  useEffect(() => guardar(LS.ventas,      ventas),      [ventas]);
-  useEffect(() => guardar(LS.deudas,      deudas),      [deudas]);
-  useEffect(() => guardar(LS.caja,        caja),        [caja]);
-  useEffect(() => guardar(LS.config,      config),      [config]);
-  useEffect(() => guardar(LS.movimientos, movimientos), [movimientos]);
-  useEffect(() => guardar(LS.gastos,      gastos),      [gastos]);
+  // Estado de carga Supabase
+  const [cargandoDB,   setCargandoDB]   = useState(Boolean(db));
+  const [errorDB,      setErrorDB]      = useState(null);
+  const sincronizado = useRef(false); // true después de que carga Supabase
 
+  // ── Cargar desde Supabase al iniciar ──────────────────────────────────────
+  useEffect(() => {
+    if (!db) {
+      setCargandoDB(false);
+      return;
+    }
+
+    db.from('app_data').select('*').then(({ data, error }) => {
+      if (error) {
+        console.error('[db] error al cargar datos:', error);
+        setErrorDB('No se pudo conectar a la base de datos.');
+        sincronizado.current = true;
+        setCargandoDB(false);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        // Supabase tiene datos → úsalos como fuente de verdad
+        const mapa = Object.fromEntries(data.map(r => [r.clave, r.valor]));
+        const alerta = mapa[LS.config]?.alertaStockBajo ?? 3;
+
+        if (mapa[LS.ventas])      setVentas(mapa[LS.ventas]);
+        if (mapa[LS.productos])   setProductos(mapa[LS.productos].map(p => ({ ...p, status: calcStatus(p.stock, alerta) })));
+        if (mapa[LS.deudas])      setDeudas(mapa[LS.deudas]);
+        if (mapa[LS.caja] !== undefined && mapa[LS.caja] !== null) setCaja(mapa[LS.caja]);
+        if (mapa[LS.config])      setConfigRaw(mapa[LS.config]);
+        if (mapa[LS.movimientos]) setMovimientos(mapa[LS.movimientos]);
+        if (mapa[LS.gastos])      setGastos(mapa[LS.gastos]);
+
+        console.log('[db] datos restaurados desde Supabase');
+      } else {
+        // Supabase vacío → hacer push del estado actual (primera vez)
+        console.log('[db] Supabase vacío, sincronizando estado inicial...');
+        const snap = {
+          [LS.ventas]:      leer(LS.ventas, []),
+          [LS.productos]:   leer(LS.productos, PRODUCTOS_INICIAL),
+          [LS.deudas]:      leer(LS.deudas, DEUDAS_INICIAL),
+          [LS.caja]:        leer(LS.caja, 503_000),
+          [LS.config]:      leer(LS.config, CONFIG_INICIAL),
+          [LS.movimientos]: leer(LS.movimientos, []),
+          [LS.gastos]:      leer(LS.gastos, []),
+        };
+        const filas = Object.entries(snap).map(([clave, valor]) => ({
+          clave, valor, actualizado_en: new Date().toISOString(),
+        }));
+        db.from('app_data').upsert(filas).then(({ error: e }) => {
+          if (e) console.error('[db] error en push inicial:', e);
+          else console.log('[db] push inicial completado');
+        });
+      }
+
+      sincronizado.current = true;
+      setCargandoDB(false);
+    });
+  }, []); // eslint-disable-line
+
+  // ── Persistir en localStorage + Supabase ────────────────────────────────
+  useEffect(() => {
+    guardar(LS.productos,   productos);
+    if (sincronizado.current) syncDB(LS.productos, productos);
+  }, [productos]);
+
+  useEffect(() => {
+    guardar(LS.ventas, ventas);
+    if (sincronizado.current) syncDB(LS.ventas, ventas);
+  }, [ventas]);
+
+  useEffect(() => {
+    guardar(LS.deudas, deudas);
+    if (sincronizado.current) syncDB(LS.deudas, deudas);
+  }, [deudas]);
+
+  useEffect(() => {
+    guardar(LS.caja, caja);
+    if (sincronizado.current) syncDB(LS.caja, caja);
+  }, [caja]);
+
+  useEffect(() => {
+    guardar(LS.config, config);
+    if (sincronizado.current) syncDB(LS.config, config);
+  }, [config]);
+
+  useEffect(() => {
+    guardar(LS.movimientos, movimientos);
+    if (sincronizado.current) syncDB(LS.movimientos, movimientos);
+  }, [movimientos]);
+
+  useEffect(() => {
+    guardar(LS.gastos, gastos);
+    if (sincronizado.current) syncDB(LS.gastos, gastos);
+  }, [gastos]);
+
+  // ── Acciones ──────────────────────────────────────────────────────────────
   const registrarVenta = useCallback((venta) => {
     const nueva = { ...venta, id: Date.now().toString(), fecha: new Date().toISOString() };
     setVentas(prev => [nueva, ...prev]);
@@ -82,6 +187,20 @@ export function AppProvider({ children }) {
       return { ...p, stock: nuevoStock, status: calcStatus(nuevoStock, config.alertaStockBajo) };
     }));
     setCaja(prev => prev + venta.total);
+  }, [config.alertaStockBajo]);
+
+  const cancelarVenta = useCallback((ventaId) => {
+    setVentas(prev => {
+      const venta = prev.find(v => v.id === ventaId);
+      if (!venta) return prev;
+      setProductos(ps => ps.map(p => {
+        if (p.id !== venta.productoId) return p;
+        const nuevoStock = p.stock + venta.cantidad;
+        return { ...p, stock: nuevoStock, status: calcStatus(nuevoStock, config.alertaStockBajo) };
+      }));
+      setCaja(c => Math.max(0, c - venta.total));
+      return prev.filter(v => v.id !== ventaId);
+    });
   }, [config.alertaStockBajo]);
 
   const agregarProducto = useCallback((p) => {
@@ -124,20 +243,6 @@ export function AppProvider({ children }) {
     }, ...prev]);
   }, []);
 
-  const cancelarVenta = useCallback((ventaId) => {
-    setVentas(prev => {
-      const venta = prev.find(v => v.id === ventaId);
-      if (!venta) return prev;
-      setProductos(ps => ps.map(p => {
-        if (p.id !== venta.productoId) return p;
-        const nuevoStock = p.stock + venta.cantidad;
-        return { ...p, stock: nuevoStock, status: calcStatus(nuevoStock, config.alertaStockBajo) };
-      }));
-      setCaja(c => Math.max(0, c - venta.total));
-      return prev.filter(v => v.id !== ventaId);
-    });
-  }, [config.alertaStockBajo]);
-
   const registrarGasto = useCallback((gasto) => {
     const nuevo = { ...gasto, id: Date.now().toString(), fecha: new Date().toISOString() };
     setGastos(prev => [nuevo, ...prev]);
@@ -155,6 +260,7 @@ export function AppProvider({ children }) {
   return (
     <AppContext.Provider value={{
       productos, ventas, deudas, caja, config, movimientos, gastos,
+      cargandoDB, errorDB,
       registrarVenta, cancelarVenta, agregarProducto, moverStock, editarProducto,
       registrarMovimiento, pagarDeuda, ajustarCaja, setConfig, registrarGasto,
     }}>
@@ -254,6 +360,21 @@ export function getTopProductos(ventas, n = 3) {
   return Object.values(mapa).sort((a, b) => b.v - a.v).slice(0, n);
 }
 
+// ── Módulo de Gastos ──────────────────────────────────────────────────────────
+
+export function gastosDelMes(gastos, fecha = new Date()) {
+  const mes = fecha.getMonth();
+  const año = fecha.getFullYear();
+  return gastos.filter(g => {
+    const d = new Date(g.fecha);
+    return d.getMonth() === mes && d.getFullYear() === año;
+  });
+}
+
+export function sumarGastos(lista) {
+  return lista.reduce((s, g) => s + g.monto, 0);
+}
+
 // ── Métricas Fase 2 ───────────────────────────────────────────────────────────
 
 export function calcMetricasInventario(ventas, movimientos, productos, fecha = new Date()) {
@@ -281,21 +402,6 @@ export function calcMetricasInventario(ventas, movimientos, productos, fecha = n
   const dsi      = rotacion > 0           ? Math.round(30 / rotacion)                    : null;
 
   return { cogsMes, unidadesVendidas, unidadesRecibidas, inventarioActual, str, rotacion, dsi };
-}
-
-// ── Módulo de Gastos ─────────────────────────────────────────────────────────
-
-export function gastosDelMes(gastos, fecha = new Date()) {
-  const mes = fecha.getMonth();
-  const año = fecha.getFullYear();
-  return gastos.filter(g => {
-    const d = new Date(g.fecha);
-    return d.getMonth() === mes && d.getFullYear() === año;
-  });
-}
-
-export function sumarGastos(lista) {
-  return lista.reduce((s, g) => s + g.monto, 0);
 }
 
 // ── Módulo de Clientes ────────────────────────────────────────────────────────
