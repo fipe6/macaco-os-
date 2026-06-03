@@ -90,20 +90,19 @@ export const sendReporteWhatsApp = (tipo, datos) =>
 export const sendDeudaUpdate = (deuda) =>
   post('/webhook/macaco/finanzas', { event: 'deuda.actualizada', deuda });
 
-// Sync del catálogo → escribe directo a Supabase (sin pasar por n8n)
+// Sync del catálogo → escribe directo a Supabase por nombre de producto
 export async function sincronizarCatalogo(productos) {
   const { db } = await import('./supabase.js');
   const filas = productos.map(p => ({
-    id:              p.id,
-    producto:        p.name,
-    stock_actual:    p.stock,
-    stock_minimo:    3,
-    precio_costo:    p.cost,
-    precio_venta:    p.price,
-    activo:          true,
-    updated_at:      new Date().toISOString(),
+    producto:     p.name,
+    stock_actual: p.stock,
+    stock_minimo: 3,
+    precio_costo: p.cost,
+    precio_venta: p.price,
+    activo:       true,
+    updated_at:   new Date().toISOString(),
   }));
-  const { error } = await db.from('inventario').upsert(filas, { onConflict: 'id' });
+  const { error } = await db.from('inventario').upsert(filas, { onConflict: 'producto' });
   if (error) throw new Error(error.message);
   return { ok: true, count: filas.length };
 }

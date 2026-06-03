@@ -25,14 +25,15 @@ async function select(table, query = '') {
   return res.json();
 }
 
-// Inserta o actualiza filas (upsert por primary key)
+// Inserta o actualiza filas — onConflict indica la columna para resolver conflictos
 async function upsert(table, rows, onConflict = 'clave') {
   const body = Array.isArray(rows) ? rows : [rows];
-  const res = await fetch(`${URL}/rest/v1/${table}`, {
+  const url  = `${URL}/rest/v1/${table}?on_conflict=${onConflict}`;
+  const res  = await fetch(url, {
     method: 'POST',
     headers: {
       ...BASE_HEADERS,
-      'Prefer': `resolution=merge-duplicates,return=minimal`,
+      'Prefer': 'resolution=merge-duplicates,return=minimal',
     },
     body: JSON.stringify(body),
   });
