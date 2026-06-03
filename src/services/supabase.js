@@ -1,5 +1,6 @@
-// Cliente Supabase usando fetch directo — compatible con iOS Safari.
-// El SDK oficial (@supabase/supabase-js) da "type:error" en algunos browsers de iOS.
+// Cliente de base de datos con doble estrategia:
+// 1. Primero intenta el PROXY en /api/db (mismo dominio, sin restricciones iOS)
+// 2. Si el proxy no está disponible, hace fetch directo a Supabase
 
 const SUPA_URL = import.meta.env.VITE_SUPABASE_URL
   || 'https://jmvbdjahitdhbvrfblnh.supabase.co';
@@ -7,18 +8,49 @@ const SUPA_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPA_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
   || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImptdmJkamFoaXRkaGJ2cmZibG5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxODU2ODksImV4cCI6MjA5NTc2MTY4OX0.6q_M4V6y53sUEr-20MzkSOTZTLL5nthwLLFLPhCsi8o';
 
+export const DB_HABILITADO = true;
+
+// ── Proxy (same-origin, sin CORS) ────────────────────────────────────────────
+async function proxySelect(table) {
+  const res = await fetch('/api/db', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ table, method: 'GET' }),
+  });
+  if (!res.ok) throw new Error(`proxy HTTP ${res.status}`);
+  const { data, error } = await res.json();
+  if (error) throw new Error(error);
+  return data || [];
+}
+
+async function proxyUpsert(table, rows, onConflict = 'clave') {
+  const body = Array.isArray(rows) ? rows : [rows];
+  const res = await fetch('/api/db', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      table,
+      method: 'POST',
+      body,
+      query: `on_conflict=${onConflict}`,
+    }),
+  });
+  if (!res.ok) throw new Error(`proxy HTTP ${res.status}`);
+  const { error } = await res.json();
+  if (error) throw new Error(error);
+  return true;
+}
+
+// ── Fetch directo (fallback) ─────────────────────────────────────────────────
 const HEADERS = {
   'apikey':        SUPA_KEY,
   'Authorization': `Bearer ${SUPA_KEY}`,
   'Content-Type':  'application/json',
 };
 
-export const DB_HABILITADO = true;
-
-// Fetch con timeout y modo cors explícito — necesario para iOS Safari
-async function dbFetch(url, options = {}) {
+async function directFetch(url, options = {}) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 10000); // 10s timeout
+  const timer = setTimeout(() => controller.abort(), 10000);
   try {
     const res = await fetch(url, {
       ...options,
@@ -39,16 +71,14 @@ async function dbFetch(url, options = {}) {
   }
 }
 
-// Lee todas las filas de una tabla
-export async function selectAll(table) {
-  const res = await dbFetch(`${SUPA_URL}/rest/v1/${table}`);
+async function directSelect(table) {
+  const res = await directFetch(`${SUPA_URL}/rest/v1/${table}`);
   return res.json();
 }
 
-// Upsert de filas — onConflict es la columna PK o unique key
-export async function upsertRows(table, rows, onConflict = 'clave') {
+async function directUpsert(table, rows, onConflict = 'clave') {
   const body = Array.isArray(rows) ? rows : [rows];
-  await dbFetch(`${SUPA_URL}/rest/v1/${table}?on_conflict=${onConflict}`, {
+  await directFetch(`${SUPA_URL}/rest/v1/${table}?on_conflict=${onConflict}`, {
     method: 'POST',
     headers: { 'Prefer': 'resolution=merge-duplicates,return=minimal' },
     body: JSON.stringify(body),
@@ -56,11 +86,27 @@ export async function upsertRows(table, rows, onConflict = 'clave') {
   return true;
 }
 
-// Test de conexión — confirma que Supabase responde
+// ── API pública: proxy primero, fallback directo ──────────────────────────────
+export async function selectAll(table) {
+  try {
+    return await proxySelect(table);
+  } catch (proxyErr) {
+    console.warn('[db] proxy falló, usando directo:', proxyErr.message);
+    return directSelect(table);
+  }
+}
+
+export async function upsertRows(table, rows, onConflict = 'clave') {
+  try {
+    return await proxyUpsert(table, rows, onConflict);
+  } catch (proxyErr) {
+    console.warn('[db] proxy falló, usando directo:', proxyErr.message);
+    return directUpsert(table, rows, onConflict);
+  }
+}
+
 export async function testConnection() {
-  const res = await dbFetch(`${SUPA_URL}/rest/v1/app_data?limit=1`);
-  await res.json();
-  return true;
+  return selectAll('app_data').then(() => true);
 }
 
 // Interfaz db.from() para compatibilidad con webhook.js
@@ -79,4 +125,4 @@ export const db = {
   }),
 };
 
-console.log('[db] fetch directo →', SUPA_URL);
+console.log('[db] iniciado — proxy + fetch directo');
