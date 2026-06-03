@@ -25,12 +25,25 @@ export default defineConfig({
       workbox: {
         skipWaiting: true,
         clientsClaim: true,
-        navigateFallback: '/index.html',
+        // NO cachear JS/CSS/HTML — siempre red para garantizar versión más nueva
+        globPatterns: ['**/*.{png,svg,ico,woff,woff2}'],
         runtimeCaching: [
           {
+            // Fuentes de Google: cache larga
             urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,
             handler: 'CacheFirst',
-            options: { cacheName: 'google-fonts' }
+            options: { cacheName: 'google-fonts', expiration: { maxAgeSeconds: 60 * 60 * 24 * 30 } }
+          },
+          {
+            // Supabase: siempre red, nunca cachear
+            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
+            handler: 'NetworkOnly',
+          },
+          {
+            // Todo lo demás (JS, CSS, HTML): NetworkFirst — red primero, cache como fallback
+            urlPattern: /\.(js|css|html)$/,
+            handler: 'NetworkFirst',
+            options: { cacheName: 'app-shell', networkTimeoutSeconds: 5 }
           }
         ]
       }
