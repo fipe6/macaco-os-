@@ -98,8 +98,9 @@ export function AppProvider({ children }) {
 
     db.from('app_data').select('*').then(async ({ data, error }) => {
       if (error) {
-        console.error('[db] error al cargar:', error.message);
-        setErrorDB(error.message);
+        const msg = error.message || JSON.stringify(error);
+        console.error('[db] error al cargar:', msg);
+        setErrorDB(msg);
         setCargandoDB(false);
         return;
       }
@@ -135,6 +136,11 @@ export function AppProvider({ children }) {
         if (e) console.error('[db] ❌ error en push inicial:', e.message);
         else   console.log('[db] ✅ push inicial completado');
       }
+      setCargandoDB(false);
+    }).catch(err => {
+      const msg = err?.message || String(err);
+      console.error('[db] error de red:', msg);
+      setErrorDB('Red: ' + msg);
       setCargandoDB(false);
     });
   }, []); // eslint-disable-line

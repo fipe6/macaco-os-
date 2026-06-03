@@ -36,25 +36,40 @@ function LoadingDB() {
 }
 
 function DBStatusBadge({ error }) {
+  const [mostrarError, setMostrarError] = useState(false);
   if (!DB_HABILITADO) return null;
   return (
-    <div style={{
-      position: 'absolute', top: 12, right: 14, zIndex: 50,
-      display: 'flex', alignItems: 'center', gap: 5,
-      padding: '3px 9px', borderRadius: 999,
-      background: error ? 'rgba(255,77,77,0.12)' : 'rgba(0,230,118,0.10)',
-      border: `1px solid ${error ? 'rgba(255,77,77,0.3)' : 'rgba(0,230,118,0.25)'}`,
-      fontSize: 9.5, fontWeight: 700, letterSpacing: '0.06em',
-      color: error ? MACACO.danger : MACACO.success,
-      pointerEvents: 'none',
-    }}>
-      <span style={{
-        width: 5, height: 5, borderRadius: 999,
-        background: error ? MACACO.danger : MACACO.success,
-        boxShadow: `0 0 6px ${error ? MACACO.danger : MACACO.success}`,
-        display: 'inline-block',
-      }} />
-      {error ? 'DB OFFLINE' : 'DB SYNC'}
+    <div style={{ position: 'absolute', top: 12, right: 14, zIndex: 50 }}>
+      <div
+        onClick={() => error && setMostrarError(v => !v)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 5,
+          padding: '3px 9px', borderRadius: 999,
+          background: error ? 'rgba(255,77,77,0.12)' : 'rgba(0,230,118,0.10)',
+          border: `1px solid ${error ? 'rgba(255,77,77,0.3)' : 'rgba(0,230,118,0.25)'}`,
+          fontSize: 9.5, fontWeight: 700, letterSpacing: '0.06em',
+          color: error ? MACACO.danger : MACACO.success,
+          cursor: error ? 'pointer' : 'default',
+        }}>
+        <span style={{
+          width: 5, height: 5, borderRadius: 999,
+          background: error ? MACACO.danger : MACACO.success,
+          boxShadow: `0 0 6px ${error ? MACACO.danger : MACACO.success}`,
+          display: 'inline-block',
+        }} />
+        {error ? 'DB OFFLINE ▾' : 'DB SYNC'}
+      </div>
+      {mostrarError && error && (
+        <div style={{
+          position: 'absolute', top: '100%', right: 0, marginTop: 4,
+          background: MACACO.card, border: `1px solid ${MACACO.danger}44`,
+          borderRadius: 10, padding: '8px 10px', maxWidth: 260,
+          fontSize: 10, color: MACACO.danger, lineHeight: 1.5,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+        }}>
+          {error}
+        </div>
+      )}
     </div>
   );
 }
