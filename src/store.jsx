@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { db } from './services/supabase.js';
+import { selectAll, upsertRows, testConnection } from './services/supabase.js';
 
 // ── Claves localStorage ───────────────────────────────────────────────────────
 const LS = {
@@ -24,8 +24,8 @@ function guardar(key, value) {
 
 // ── Supabase: escribe UNA clave directamente ──────────────────────────────────
 // Cada acción llama esto explícitamente — sin depender de useEffect ni timing.
-async function pushDB(clave, valor) {
-  db.upsertRows('app_data', [{ clave, valor, actualizado_en: new Date().toISOString() }])
+function pushDB(clave, valor) {
+  upsertRows('app_data', [{ clave, valor, actualizado_en: new Date().toISOString() }])
     .then(() => console.log('[db] ✅', clave))
     .catch(err => console.error('[db] ❌', clave, err.message));
 }
@@ -93,7 +93,12 @@ export function AppProvider({ children }) {
   useEffect(() => {
     if (!db) { setCargandoDB(false); return; }
 
-    db.selectAll('app_data').then(async (data) => {
+    // Test explícito de conexión antes de cargar datos
+    testConnection()
+      .then(() => console.log('[db] ✅ conexión OK'))
+      .catch(err => console.warn('[db] ⚠️ test conexión:', err.message));
+
+    selectAll('app_data').then(async (data) => {
       const m = data ? Object.fromEntries(data.map(r => [r.clave, r.valor])) : {};
 
       // Solo usamos Supabase si tiene productos reales (array con al menos 1 item)
@@ -125,7 +130,7 @@ export function AppProvider({ children }) {
           { clave: LS.gastos,      valor: estado.gastos },
         ].map(f => ({ ...f, actualizado_en: new Date().toISOString() }));
 
-        await db.upsertRows('app_data', filas);
+        await upsertRows('app_data', filas);
         console.log('[db] ✅ push inicial completado');
       }
       setCargandoDB(false);
