@@ -36,40 +36,55 @@ function LoadingDB() {
 }
 
 function DBStatusBadge({ error }) {
-  const [mostrarError, setMostrarError] = useState(false);
   if (!DB_HABILITADO) return null;
-  return (
-    <div style={{ position: 'absolute', top: 12, right: 14, zIndex: 50 }}>
-      <div
-        onClick={() => error && setMostrarError(v => !v)}
-        style={{
-          display: 'flex', alignItems: 'center', gap: 5,
-          padding: '3px 9px', borderRadius: 999,
-          background: error ? 'rgba(255,77,77,0.12)' : 'rgba(0,230,118,0.10)',
-          border: `1px solid ${error ? 'rgba(255,77,77,0.3)' : 'rgba(0,230,118,0.25)'}`,
-          fontSize: 9.5, fontWeight: 700, letterSpacing: '0.06em',
-          color: error ? MACACO.danger : MACACO.success,
-          cursor: error ? 'pointer' : 'default',
-        }}>
-        <span style={{
-          width: 5, height: 5, borderRadius: 999,
-          background: error ? MACACO.danger : MACACO.success,
-          boxShadow: `0 0 6px ${error ? MACACO.danger : MACACO.success}`,
-          display: 'inline-block',
-        }} />
-        {error ? 'DB OFFLINE ▾' : 'DB SYNC'}
-      </div>
-      {mostrarError && error && (
-        <div style={{
-          position: 'absolute', top: '100%', right: 0, marginTop: 4,
-          background: MACACO.card, border: `1px solid ${MACACO.danger}44`,
-          borderRadius: 10, padding: '8px 10px', maxWidth: 260,
-          fontSize: 10, color: MACACO.danger, lineHeight: 1.5,
-          boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
-        }}>
-          {error}
+
+  if (error) {
+    return (
+      <div style={{
+        position: 'absolute', top: 0, left: 0, right: 0, zIndex: 50,
+        background: 'rgba(255,77,77,0.95)', backdropFilter: 'blur(8px)',
+        padding: '10px 16px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+      }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: '#fff', letterSpacing: '0.08em' }}>
+            DB OFFLINE
+          </div>
+          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.8)', marginTop: 2 }}>
+            {error.length > 60 ? error.slice(0, 60) + '…' : error}
+          </div>
         </div>
-      )}
+        <button
+          onClick={() => window.location.reload()}
+          style={{
+            padding: '6px 12px', borderRadius: 8,
+            background: '#fff', color: MACACO.danger,
+            border: 'none', fontSize: 11, fontWeight: 800,
+            cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0,
+          }}
+        >
+          REINTENTAR
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      position: 'absolute', top: 12, right: 14, zIndex: 50,
+      display: 'flex', alignItems: 'center', gap: 5,
+      padding: '3px 9px', borderRadius: 999,
+      background: 'rgba(0,230,118,0.10)',
+      border: '1px solid rgba(0,230,118,0.25)',
+      fontSize: 9.5, fontWeight: 700, letterSpacing: '0.06em',
+      color: MACACO.success, pointerEvents: 'none',
+    }}>
+      <span style={{
+        width: 5, height: 5, borderRadius: 999,
+        background: MACACO.success, boxShadow: `0 0 6px ${MACACO.success}`,
+        display: 'inline-block',
+      }} />
+      DB SYNC
     </div>
   );
 }
