@@ -4,22 +4,14 @@ import { useAuth } from '../AuthProvider.jsx';
 
 export default function LoginScreen() {
   const { signIn, authError } = useAuth();
-  const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading]   = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    await signIn(email.trim(), password);
+    await signIn(password);
     setLoading(false);
-  };
-
-  const inputStyle = {
-    width: '100%', boxSizing: 'border-box',
-    background: MACACO.cardElev, border: `1px solid ${MACACO.border}`,
-    borderRadius: 10, padding: '13px 14px', color: '#fff',
-    fontSize: 15, outline: 'none', fontFamily: 'inherit',
   };
 
   return (
@@ -31,22 +23,23 @@ export default function LoginScreen() {
       <div style={{ fontSize: 44 }}>🦁</div>
       <div style={{ textAlign: 'center' }}>
         <div style={{ fontSize: 22, fontWeight: 800, color: '#fff' }}>Macaco OS</div>
-        <div style={{ fontSize: 12.5, color: MACACO.textMuted, marginTop: 4 }}>Inicia sesión para continuar</div>
+        <div style={{ fontSize: 12.5, color: MACACO.textMuted, marginTop: 4 }}>Ingresa la contraseña para continuar</div>
       </div>
 
       <form onSubmit={handleSubmit} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }}>
         <input
-          type="email" placeholder="Correo" value={email} autoCapitalize="none"
-          onChange={e => setEmail(e.target.value)} style={inputStyle} required
-        />
-        <input
-          type="password" placeholder="Contraseña" value={password}
-          onChange={e => setPassword(e.target.value)} style={inputStyle} required
+          type="password" placeholder="Contraseña" value={password} autoFocus
+          onChange={e => setPassword(e.target.value)} style={{
+            width: '100%', boxSizing: 'border-box',
+            background: MACACO.cardElev, border: `1px solid ${MACACO.border}`,
+            borderRadius: 10, padding: '13px 14px', color: '#fff',
+            fontSize: 15, outline: 'none', fontFamily: 'inherit',
+          }} required
         />
 
         {authError && (
           <div style={{ fontSize: 12, color: MACACO.danger, textAlign: 'center' }}>
-            {authError === 'Invalid login credentials' ? 'Correo o contraseña incorrectos.' : authError}
+            {authError === 'Invalid login credentials' ? 'Contraseña incorrecta.' : authError}
           </div>
         )}
 
