@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { selectAll, upsertRows, testConnection } from './services/supabase.js';
+import { selectAll, upsertRows, pushInventarioRows, testConnection } from './services/supabase.js';
+import { supabase } from './services/supabaseAuth.js';
 
 // ── Claves localStorage ───────────────────────────────────────────────────────
 const LS = {
@@ -28,6 +29,13 @@ function pushDB(clave, valor) {
   upsertRows('app_data', [{ clave, valor, actualizado_en: new Date().toISOString() }])
     .then(() => console.log('[db] ✅', clave))
     .catch(err => console.error('[db] ❌', clave, err.message));
+}
+
+// Sync por producto a la tabla `inventario` — fire-and-forget en cada cambio de stock/precio.
+function pushInv(productos) {
+  pushInventarioRows(productos)
+    .then(() => console.log('[inv] ✅', productos.map(p => p.name).join(', ')))
+    .catch(err => console.error('[inv] ❌', err.message));
 }
 
 // ── Estado inicial ────────────────────────────────────────────────────────────
@@ -148,6 +156,32 @@ export function AppProvider({ children }) {
     });
   }, []); // eslint-disable-line
 
+  // ── Realtime: refleja en vivo lo que registre el otro dispositivo ─────────
+  useEffect(() => {
+    if (cargandoDB) return;
+
+    const channel = supabase
+      .channel('app_data-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'app_data' }, (payload) => {
+        const row = payload.new;
+        if (!row || row.valor === undefined) return;
+        const alerta = refs.current.config?.alertaStockBajo ?? 3;
+        switch (row.clave) {
+          case LS.productos:   setProductos(row.valor.map(p => ({ ...p, status: calcStatus(p.stock, alerta) }))); break;
+          case LS.ventas:      setVentas(row.valor);      break;
+          case LS.deudas:      setDeudas(row.valor);      break;
+          case LS.caja:        setCaja(row.valor);        break;
+          case LS.config:      setConfigRaw(row.valor);   break;
+          case LS.movimientos: setMovimientos(row.valor); break;
+          case LS.gastos:      setGastos(row.valor);      break;
+          default: break;
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [cargandoDB]);
+
   // ── Acciones — cada una persiste explícitamente a Supabase ────────────────
 
   const registrarVenta = useCallback((venta) => {
@@ -165,6 +199,7 @@ export function AppProvider({ children }) {
         return { ...p, stock: s, status: calcStatus(s, refs.current.config.alertaStockBajo) };
       });
       pushDB(LS.productos, p);
+      pushInv(p.filter(prod => prod.id === venta.productoId));
       return p;
     });
     setCaja(prev => {
@@ -188,6 +223,7 @@ export function AppProvider({ children }) {
           return { ...p, stock: s, status: calcStatus(s, refs.current.config.alertaStockBajo) };
         });
         pushDB(LS.productos, p);
+        pushInv(p.filter(prod => prod.id === venta.productoId));
         return p;
       });
       setCaja(c => {
@@ -201,8 +237,10 @@ export function AppProvider({ children }) {
 
   const agregarProducto = useCallback((p) => {
     setProductos(prev => {
-      const prod = [{ ...p, id: Date.now().toString(), status: calcStatus(p.stock, refs.current.config.alertaStockBajo) }, ...prev];
+      const nuevo = { ...p, id: Date.now().toString(), status: calcStatus(p.stock, refs.current.config.alertaStockBajo) };
+      const prod = [nuevo, ...prev];
       pushDB(LS.productos, prod);
+      pushInv([nuevo]);
       return prod;
     });
   }, []);
@@ -215,6 +253,7 @@ export function AppProvider({ children }) {
         return { ...p, stock: s, status: calcStatus(s, refs.current.config.alertaStockBajo) };
       });
       pushDB(LS.productos, p);
+      pushInv(p.filter(prod => prod.id === id));
       return p;
     });
   }, []);
@@ -227,6 +266,7 @@ export function AppProvider({ children }) {
         return { ...u, status: calcStatus(u.stock, refs.current.config.alertaStockBajo) };
       });
       pushDB(LS.productos, p);
+      pushInv(p.filter(prod => prod.id === id));
       return p;
     });
   }, []);

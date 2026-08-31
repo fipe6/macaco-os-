@@ -4,9 +4,11 @@ import { Card, SectionTitle, Dot, Icon } from '../components/ui.jsx';
 import { Screen } from '../components/Screen.jsx';
 import { flushQueue } from '../services/webhook.js';
 import { useApp } from '../store.jsx';
+import { useAuth } from '../AuthProvider.jsx';
 
 export default function ConfigScreen() {
   const { config, setConfig, caja, ajustarCaja } = useApp();
+  const { session, signOut } = useAuth();
   const [syncing,  setSyncing]  = useState(false);
   const [lastSync, setLastSync] = useState('—');
   const [editMeta, setEditMeta] = useState(false);
@@ -143,6 +145,20 @@ export default function ConfigScreen() {
         opacity: syncing ? 0.7 : 1,
       }}>
         <Icon.refresh size={14}/> {syncing ? 'Sincronizando...' : 'Reintentar cola de eventos'}
+      </button>
+
+      {session?.user?.email && (
+        <div style={{ fontSize: 11, color: MACACO.textMuted, textAlign: 'center', marginTop: 14 }}>
+          Sesión: {session.user.email}
+        </div>
+      )}
+      <button onClick={() => { if (confirm('¿Cerrar sesión?')) signOut(); }} style={{
+        width: '100%', padding: '13px', marginTop: 10,
+        background: 'transparent', border: `1px solid ${MACACO.border}`,
+        color: MACACO.danger, borderRadius: 12,
+        fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+      }}>
+        Cerrar sesión
       </button>
 
       {editMeta && (

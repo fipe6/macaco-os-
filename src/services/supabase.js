@@ -1,6 +1,12 @@
 // Cliente de base de datos con doble estrategia:
 // 1. Primero intenta el PROXY en /api/db (mismo dominio, sin restricciones iOS)
 // 2. Si el proxy no está disponible, hace fetch directo a Supabase
+//
+// Las tablas de negocio tienen RLS restringido a usuarios autenticados, así que
+// cada request (proxy o directo) viaja con el JWT de la sesión activa, no solo
+// la anon key — sin sesión, Supabase rechaza la lectura/escritura.
+
+import { getAccessToken } from './supabaseAuth.js';
 
 const SUPA_URL = import.meta.env.VITE_SUPABASE_URL
   || 'https://jmvbdjahitdhbvrfblnh.supabase.co';
@@ -12,10 +18,11 @@ export const DB_HABILITADO = true;
 
 // ── Proxy (same-origin, sin CORS) ────────────────────────────────────────────
 async function proxySelect(table) {
+  const token = await getAccessToken();
   const res = await fetch('/api/db', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ table, method: 'GET' }),
+    body: JSON.stringify({ table, method: 'GET', token }),
   });
   if (!res.ok) throw new Error(`proxy HTTP ${res.status}`);
   const { data, error } = await res.json();
@@ -24,6 +31,7 @@ async function proxySelect(table) {
 }
 
 async function proxyUpsert(table, rows, onConflict = 'clave') {
+  const token = await getAccessToken();
   const body = Array.isArray(rows) ? rows : [rows];
   const res = await fetch('/api/db', {
     method: 'POST',
@@ -33,6 +41,7 @@ async function proxyUpsert(table, rows, onConflict = 'clave') {
       method: 'POST',
       body,
       query: `on_conflict=${onConflict}`,
+      token,
     }),
   });
   if (!res.ok) throw new Error(`proxy HTTP ${res.status}`);
@@ -42,11 +51,15 @@ async function proxyUpsert(table, rows, onConflict = 'clave') {
 }
 
 // ── Fetch directo (fallback) ─────────────────────────────────────────────────
-const HEADERS = {
-  'apikey':        SUPA_KEY,
-  'Authorization': `Bearer ${SUPA_KEY}`,
-  'Content-Type':  'application/json',
-};
+async function authHeaders(extra = {}) {
+  const token = await getAccessToken();
+  return {
+    'apikey':        SUPA_KEY,
+    'Authorization': `Bearer ${token || SUPA_KEY}`,
+    'Content-Type':  'application/json',
+    ...extra,
+  };
+}
 
 async function directFetch(url, options = {}) {
   const controller = new AbortController();
@@ -56,7 +69,7 @@ async function directFetch(url, options = {}) {
       ...options,
       mode: 'cors',
       signal: controller.signal,
-      headers: { ...HEADERS, ...(options.headers || {}) },
+      headers: { ...(await authHeaders()), ...(options.headers || {}) },
     });
     clearTimeout(timer);
     if (!res.ok) {
@@ -107,6 +120,22 @@ export async function upsertRows(table, rows, onConflict = 'clave') {
 
 export async function testConnection() {
   return selectAll('app_data').then(() => true);
+}
+
+// Sync por producto a la tabla `inventario` (onConflict por nombre).
+// La usa store.jsx en cada acción que muta stock o precios — corre en background.
+export async function pushInventarioRows(productos) {
+  if (!productos || productos.length === 0) return true;
+  const filas = productos.map(p => ({
+    producto:     p.name,
+    stock_actual: p.stock,
+    stock_minimo: 3,
+    precio_costo: p.cost,
+    precio_venta: p.price,
+    activo:       true,
+    updated_at:   new Date().toISOString(),
+  }));
+  return upsertRows('inventario', filas, 'producto');
 }
 
 // Interfaz db.from() para compatibilidad con webhook.js

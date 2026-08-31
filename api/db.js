@@ -1,4 +1,9 @@
 // Proxy Vercel → Supabase (same-origin, sin restricciones iOS Safari)
+//
+// Reenvía el JWT de la sesión del usuario (campo `token` en el body) como
+// Authorization, para que PostgREST evalúe las políticas RLS como usuario
+// `authenticated` en vez de `anon`. Sin token, cae a la anon key — RLS lo
+// bloqueará como corresponde.
 
 const SUPA_URL = 'https://jmvbdjahitdhbvrfblnh.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImptdmJkamFoaXRkaGJ2cmZibG5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxODU2ODksImV4cCI6MjA5NTc2MTY4OX0.6q_M4V6y53sUEr-20MzkSOTZTLL5nthwLLFLPhCsi8o';
@@ -11,7 +16,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const { table = 'app_data', method = 'GET', body, query = '' } = req.body || {};
+    const { table = 'app_data', method = 'GET', body, query = '', token } = req.body || {};
 
     const url = `${SUPA_URL}/rest/v1/${encodeURIComponent(table)}${query ? '?' + query : ''}`;
 
@@ -19,7 +24,7 @@ export default async function handler(req, res) {
       method,
       headers: {
         'apikey': String(SUPA_KEY),
-        'Authorization': 'Bearer ' + String(SUPA_KEY),
+        'Authorization': 'Bearer ' + String(token || SUPA_KEY),
         'Content-Type': 'application/json',
         ...(method !== 'GET' ? { 'Prefer': 'resolution=merge-duplicates,return=minimal' } : {}),
       },
