@@ -8,11 +8,11 @@
 
 import { getAccessToken } from './supabaseAuth.js';
 
-const SUPA_URL = import.meta.env.VITE_SUPABASE_URL
-  || 'https://jmvbdjahitdhbvrfblnh.supabase.co';
+// Hardcodeado a propósito, no leído de import.meta.env — ver nota en
+// supabaseAuth.js sobre el BOM que Vercel mete en env vars.
+const SUPA_URL = 'https://jmvbdjahitdhbvrfblnh.supabase.co';
 
-const SUPA_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
-  || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImptdmJkamFoaXRkaGJ2cmZibG5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxODU2ODksImV4cCI6MjA5NTc2MTY4OX0.6q_M4V6y53sUEr-20MzkSOTZTLL5nthwLLFLPhCsi8o';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImptdmJkamFoaXRkaGJ2cmZibG5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxODU2ODksImV4cCI6MjA5NTc2MTY4OX0.6q_M4V6y53sUEr-20MzkSOTZTLL5nthwLLFLPhCsi8o';
 
 export const DB_HABILITADO = true;
 
