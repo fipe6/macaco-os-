@@ -17,12 +17,9 @@ export function AuthProvider({ children }) {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  const sendMagicLink = useCallback(async (email) => {
+  const signIn = useCallback(async (email, password) => {
     setAuthError(null);
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: window.location.origin },
-    });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) setAuthError(error.message);
     return !error;
   }, []);
@@ -30,7 +27,7 @@ export function AuthProvider({ children }) {
   const signOut = useCallback(() => supabase.auth.signOut(), []);
 
   return (
-    <AuthContext.Provider value={{ session, authError, sendMagicLink, signOut }}>
+    <AuthContext.Provider value={{ session, authError, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );
