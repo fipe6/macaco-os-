@@ -125,21 +125,8 @@ export default function FinanzasScreen() {
         </Card>
       )}
 
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', padding: '0 4px', marginBottom: 10 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: MACACO.textDim }}>Deudas</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ fontSize: 12, color: MACACO.textMuted, fontWeight: 500 }}>{clp(totalDebt)} total</div>
-          <button onClick={() => setDeudaSheet('new')} aria-label="Agregar deuda" style={{
-            width: 22, height: 22, borderRadius: 999, flexShrink: 0,
-            background: 'rgba(245,197,24,0.12)', color: MACACO.primary,
-            border: `1px solid ${MACACO.primary}44`, cursor: 'pointer', fontFamily: 'inherit',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
-          }}>
-            <Icon.plus size={12} />
-          </button>
-        </div>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 18 }}>
+      <SectionTitle right={clp(totalDebt) + ' total'}>Deudas</SectionTitle>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 10 }}>
         {deudas.length === 0 ? (
           <Card>
             <div style={{ textAlign: 'center', padding: '16px 0', color: MACACO.success, fontSize: 13, fontWeight: 600 }}>
@@ -163,6 +150,20 @@ export default function FinanzasScreen() {
           })()
         )}
       </div>
+
+      <button
+        onClick={() => setDeudaSheet('new')}
+        style={{
+          width: '100%', padding: '13px', marginBottom: 18,
+          background: 'rgba(245,197,24,0.1)', color: MACACO.primary,
+          border: `1px solid rgba(245,197,24,0.3)`, borderRadius: 12,
+          fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+          letterSpacing: '0.03em',
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        }}
+      >
+        <Icon.plus size={13} /> AGREGAR DEUDA
+      </button>
 
       <SectionTitle>Objetivos</SectionTitle>
       <Card style={{ marginBottom: 18 }}>
