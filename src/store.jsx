@@ -271,6 +271,35 @@ export function AppProvider({ children }) {
     });
   }, []);
 
+  const agregarDeuda = useCallback((deuda) => {
+    setDeudas(prev => {
+      const nueva = {
+        id: Date.now().toString(),
+        who: deuda.who, amt: deuda.amt, rate: deuda.rate || 0,
+        level: deuda.level || 'low', label: deuda.label || '',
+      };
+      const d = [...prev, nueva];
+      pushDB(LS.deudas, d);
+      return d;
+    });
+  }, []);
+
+  const editarDeuda = useCallback((id, cambios) => {
+    setDeudas(prev => {
+      const d = prev.map(x => x.id !== id ? x : { ...x, ...cambios });
+      pushDB(LS.deudas, d);
+      return d;
+    });
+  }, []);
+
+  const eliminarDeuda = useCallback((id) => {
+    setDeudas(prev => {
+      const d = prev.filter(x => x.id !== id);
+      pushDB(LS.deudas, d);
+      return d;
+    });
+  }, []);
+
   const pagarDeuda = useCallback((id, monto) => {
     setDeudas(prev => {
       const d = prev.map(d => d.id !== id ? d : { ...d, amt: Math.max(0, d.amt - monto) }).filter(d => d.amt > 0);
@@ -326,7 +355,8 @@ export function AppProvider({ children }) {
       productos, ventas, deudas, caja, config, movimientos, gastos,
       cargandoDB, errorDB,
       registrarVenta, cancelarVenta, agregarProducto, moverStock, editarProducto,
-      registrarMovimiento, pagarDeuda, ajustarCaja, setConfig, registrarGasto,
+      registrarMovimiento, pagarDeuda, agregarDeuda, editarDeuda, eliminarDeuda,
+      ajustarCaja, setConfig, registrarGasto,
     }}>
       {children}
     </AppContext.Provider>

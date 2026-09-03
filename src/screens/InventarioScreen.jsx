@@ -321,7 +321,22 @@ function StockMoveSheet({ producto, onClose, onMove }) {
           borderRadius: 10, padding: '8px 12px',
         }}>
           <button onClick={() => setDelta(d => Math.max(1, d - 1))} style={stepBtn}>−</button>
-          <div style={{ fontSize: 28, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{delta}</div>
+          <input
+            type="text" inputMode="numeric"
+            value={delta === 0 ? '' : String(delta)}
+            placeholder="0"
+            onFocus={e => e.target.select()}
+            onChange={e => {
+              const digits = e.target.value.replace(/\D/g, '');
+              setDelta(digits === '' ? 0 : parseInt(digits, 10));
+            }}
+            onBlur={() => setDelta(d => Math.max(1, d))}
+            style={{
+              width: 70, textAlign: 'center', background: 'transparent', border: 'none',
+              color: '#fff', fontSize: 28, fontWeight: 800, outline: 'none',
+              fontFamily: 'inherit', fontVariantNumeric: 'tabular-nums', padding: 0,
+            }}
+          />
           <button onClick={() => setDelta(d => d + 1)} style={stepBtn}>+</button>
         </div>
       </div>
@@ -535,7 +550,24 @@ function AddProductSheet({ onClose, onSave }) {
           borderRadius: 10, padding: '8px 12px',
         }}>
           <button onClick={() => setStock(s => Math.max(0, s - 1))} style={stepBtn}>−</button>
-          <div style={{ fontSize: 22, fontWeight: 800 }}>{stock} <span style={{ fontSize: 11, color: MACACO.textMuted, fontWeight: 500 }}>UND</span></div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+            <input
+              type="text" inputMode="numeric"
+              value={stock === 0 ? '' : String(stock)}
+              placeholder="0"
+              onFocus={e => e.target.select()}
+              onChange={e => {
+                const digits = e.target.value.replace(/\D/g, '');
+                setStock(digits === '' ? 0 : parseInt(digits, 10));
+              }}
+              style={{
+                width: 56, textAlign: 'center', background: 'transparent', border: 'none',
+                color: '#fff', fontSize: 22, fontWeight: 800, outline: 'none',
+                fontFamily: 'inherit', padding: 0,
+              }}
+            />
+            <span style={{ fontSize: 11, color: MACACO.textMuted, fontWeight: 500 }}>UND</span>
+          </div>
           <button onClick={() => setStock(s => s + 1)} style={stepBtn}>+</button>
         </div>
       </div>

@@ -9,9 +9,10 @@ import { gastosDelMes, sumarGastos, MESES } from '../store.jsx';
 const ALERTA_GASTOS_NEGOCIO = 273_000;
 
 export default function FinanzasScreen() {
-  const { deudas, caja, config, gastos, pagarDeuda, ajustarCaja } = useApp();
+  const { deudas, caja, config, gastos, pagarDeuda, ajustarCaja, agregarDeuda, editarDeuda, eliminarDeuda } = useApp();
   const [pagoSheet, setPagoSheet]   = useState(null);
   const [ajusteCaja, setAjusteCaja] = useState(false);
+  const [deudaSheet, setDeudaSheet] = useState(null); // null | 'new' | deuda
   const [gastosExpanded, setGastosExpanded] = useState(false);
 
   const totalDebt       = deudas.reduce((s, d) => s + d.amt, 0);
@@ -38,6 +39,22 @@ export default function FinanzasScreen() {
     const deuda = deudas.find(d => d.id === id);
     if (deuda) await sendDeudaUpdate({ ...deuda, amt: Math.max(0, deuda.amt - monto), pago: monto });
     setPagoSheet(null);
+  };
+
+  const handleGuardarDeuda = (cambios) => {
+    if (deudaSheet === 'new') {
+      agregarDeuda(cambios);
+      sendDeudaUpdate({ ...cambios, id: 'nueva' });
+    } else {
+      editarDeuda(deudaSheet.id, cambios);
+      sendDeudaUpdate({ ...deudaSheet, ...cambios });
+    }
+    setDeudaSheet(null);
+  };
+
+  const handleEliminarDeuda = (id) => {
+    eliminarDeuda(id);
+    setDeudaSheet(null);
   };
 
   return (
@@ -108,7 +125,20 @@ export default function FinanzasScreen() {
         </Card>
       )}
 
-      <SectionTitle right={clp(totalDebt) + ' total'}>Deudas</SectionTitle>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', padding: '0 4px', marginBottom: 10 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: MACACO.textDim }}>Deudas</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ fontSize: 12, color: MACACO.textMuted, fontWeight: 500 }}>{clp(totalDebt)} total</div>
+          <button onClick={() => setDeudaSheet('new')} aria-label="Agregar deuda" style={{
+            width: 22, height: 22, borderRadius: 999, flexShrink: 0,
+            background: 'rgba(245,197,24,0.12)', color: MACACO.primary,
+            border: `1px solid ${MACACO.primary}44`, cursor: 'pointer', fontFamily: 'inherit',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+          }}>
+            <Icon.plus size={12} />
+          </button>
+        </div>
+      </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 18 }}>
         {deudas.length === 0 ? (
           <Card>
@@ -117,9 +147,20 @@ export default function FinanzasScreen() {
             </div>
           </Card>
         ) : (
-          deudas.map((d) => (
-            <DebtCard key={d.id} d={d} onPagar={() => setPagoSheet(d)} />
-          ))
+          (() => {
+            let urgentCount = 0;
+            return deudas.map((d) => {
+              const order = d.level === 'urgent' ? ++urgentCount : null;
+              return (
+                <DebtCard
+                  key={d.id}
+                  d={{ ...d, order }}
+                  onPagar={() => setPagoSheet(d)}
+                  onEditar={() => setDeudaSheet(d)}
+                />
+              );
+            });
+          })()
         )}
       </div>
 
@@ -239,6 +280,14 @@ export default function FinanzasScreen() {
       {ajusteCaja && (
         <AjusteCajaSheet cajaActual={caja} onClose={() => setAjusteCaja(false)} onSave={(v) => { ajustarCaja(v); setAjusteCaja(false); }} />
       )}
+      {deudaSheet && (
+        <DeudaFormSheet
+          deuda={deudaSheet === 'new' ? null : deudaSheet}
+          onClose={() => setDeudaSheet(null)}
+          onSave={handleGuardarDeuda}
+          onDelete={handleEliminarDeuda}
+        />
+      )}
     </Screen>
   );
 }
@@ -275,7 +324,7 @@ function GastoTile({ label, monto, montoAnt, color }) {
   );
 }
 
-function DebtCard({ d, onPagar }) {
+function DebtCard({ d, onPagar, onEditar }) {
   const palette = {
     urgent: { bg: 'linear-gradient(135deg, rgba(255,77,77,0.10), rgba(255,77,77,0.02))', border: 'rgba(255,77,77,0.35)', accent: MACACO.danger },
     medium: { bg: MACACO.card, border: 'rgba(255,159,64,0.3)',  accent: MACACO.orange },
@@ -330,18 +379,32 @@ function DebtCard({ d, onPagar }) {
           <span style={{ fontSize: 13, fontWeight: 700, color: MACACO.danger }}>-{clp(Math.round(d.amt * d.rate / 100))}</span>
         </div>
       )}
-      <button
-        onClick={onPagar}
-        style={{
-          marginTop: 12, width: '100%', padding: '10px',
-          background: 'transparent', border: `1px solid ${palette.border}`,
-          color: palette.accent, fontSize: 12, fontWeight: 700,
-          borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit',
-          display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-        }}
-      >
-        Registrar pago <Icon.arrowRight size={11} />
-      </button>
+      <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+        <button
+          onClick={onPagar}
+          style={{
+            flex: 1, padding: '10px',
+            background: 'transparent', border: `1px solid ${palette.border}`,
+            color: palette.accent, fontSize: 12, fontWeight: 700,
+            borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          }}
+        >
+          Registrar pago <Icon.arrowRight size={11} />
+        </button>
+        <button
+          onClick={onEditar}
+          aria-label="Editar deuda"
+          style={{
+            width: 42, flexShrink: 0,
+            background: 'transparent', border: `1px solid ${palette.border}`,
+            color: palette.accent, borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <Icon.edit size={14} />
+        </button>
+      </div>
     </div>
   );
 }
@@ -483,6 +546,180 @@ function AjusteCajaSheet({ cajaActual, onClose, onSave }) {
         }}>
           GUARDAR
         </button>
+      </div>
+    </div>
+  );
+}
+
+const labelStyle = {
+  fontSize: 11, color: MACACO.textDim, fontWeight: 600, letterSpacing: '0.1em',
+  textTransform: 'uppercase', display: 'block', marginBottom: 6,
+};
+const textInputStyle = {
+  width: '100%', boxSizing: 'border-box',
+  background: MACACO.cardElev, border: `1px solid ${MACACO.border}`,
+  borderRadius: 10, padding: '12px 14px',
+  color: '#fff', fontSize: 15, fontWeight: 500,
+  outline: 'none', fontFamily: 'inherit',
+};
+
+function DeudaFormSheet({ deuda, onClose, onSave, onDelete }) {
+  const isNew = !deuda;
+  const [who, setWho]     = useState(deuda?.who || '');
+  const [amt, setAmt]     = useState(deuda?.amt || 0);
+  const [rate, setRate]   = useState(deuda?.rate || 0);
+  const [level, setLevel] = useState(deuda?.level || 'low');
+  const [label, setLabel] = useState(deuda?.label || '');
+
+  const canSave = who.trim().length > 0 && amt > 0;
+
+  const levelOpts = [
+    { id: 'urgent', label: 'Urgente', color: MACACO.danger },
+    { id: 'medium', label: 'Media',   color: MACACO.orange },
+    { id: 'low',    label: 'Baja',    color: MACACO.textMuted },
+  ];
+
+  return (
+    <div style={{ position: 'absolute', inset: 0, zIndex: 100, animation: 'fadeUp 220ms' }}>
+      <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
+      <div style={{
+        position: 'absolute', left: 0, right: 0, bottom: 0,
+        background: MACACO.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+        border: `1px solid ${MACACO.border}`, borderBottom: 'none',
+        padding: '14px 18px 32px', maxHeight: '90%', overflowY: 'auto',
+        boxShadow: '0 -20px 50px rgba(0,0,0,0.6)',
+        animation: 'sheetUp 320ms cubic-bezier(.2,.7,.2,1)',
+      }}>
+        <div style={{ width: 36, height: 4, borderRadius: 999, background: 'rgba(255,255,255,0.18)', margin: '0 auto 16px' }}/>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
+          <div>
+            <div style={{ fontSize: 10.5, color: MACACO.primary, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase' }}>
+              {isNew ? 'Nueva deuda' : 'Editar deuda'}
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 800, marginTop: 4 }}>{isNew ? 'Agregar deuda' : deuda.who}</div>
+          </div>
+          <button onClick={onClose} style={{
+            width: 32, height: 32, borderRadius: 999,
+            background: MACACO.cardElev, border: `1px solid ${MACACO.border}`,
+            color: '#fff', fontSize: 18, cursor: 'pointer', fontFamily: 'inherit',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>×</button>
+        </div>
+
+        <div style={{ marginBottom: 14 }}>
+          <label style={labelStyle}>Nombre</label>
+          <input
+            value={who} onChange={e => setWho(e.target.value)}
+            placeholder="Ej. Roxana" autoFocus={isNew}
+            style={textInputStyle}
+          />
+        </div>
+
+        <div style={{ marginBottom: 14 }}>
+          <label style={labelStyle}>Monto de la deuda</label>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 4,
+            background: MACACO.cardElev, border: `1px solid ${MACACO.border}`,
+            borderRadius: 10, padding: '12px 14px',
+          }}>
+            <span style={{ color: MACACO.textMuted, fontSize: 18, fontWeight: 600 }}>$</span>
+            <input
+              type="text" inputMode="numeric"
+              value={amt === 0 ? '' : amt.toLocaleString('es-CL')}
+              placeholder="0"
+              onChange={e => setAmt(parseInt(e.target.value.replace(/\D/g, ''), 10) || 0)}
+              style={{
+                flex: 1, background: 'transparent', border: 'none', color: '#fff',
+                fontSize: 22, fontWeight: 700, outline: 'none', padding: 0, fontFamily: 'inherit',
+              }}
+            />
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 14 }}>
+          <label style={labelStyle}>Interés mensual</label>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 4,
+            background: MACACO.cardElev, border: `1px solid ${MACACO.border}`,
+            borderRadius: 10, padding: '12px 14px',
+          }}>
+            <input
+              type="text" inputMode="decimal"
+              value={rate === 0 ? '' : String(rate)}
+              placeholder="0"
+              onChange={e => {
+                const v = e.target.value.replace(/[^\d.]/g, '');
+                setRate(v === '' ? 0 : Math.min(100, parseFloat(v) || 0));
+              }}
+              style={{
+                flex: 1, background: 'transparent', border: 'none', color: '#fff',
+                fontSize: 22, fontWeight: 700, outline: 'none', padding: 0, fontFamily: 'inherit',
+              }}
+            />
+            <span style={{ color: MACACO.textMuted, fontSize: 15, fontWeight: 600 }}>% / mes</span>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 14 }}>
+          <label style={labelStyle}>Prioridad</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {levelOpts.map(o => {
+              const active = level === o.id;
+              return (
+                <button key={o.id} onClick={() => setLevel(o.id)} style={{
+                  flex: 1, padding: '10px 6px', borderRadius: 10,
+                  background: active ? o.color + '18' : MACACO.cardElev,
+                  border: `1px solid ${active ? o.color + '55' : MACACO.border}`,
+                  color: active ? o.color : MACACO.textDim,
+                  fontFamily: 'inherit', cursor: 'pointer', textAlign: 'center',
+                  fontSize: 12, fontWeight: 700,
+                }}>
+                  {o.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 18 }}>
+          <label style={labelStyle}>Nota (opcional)</label>
+          <input
+            value={label} onChange={e => setLabel(e.target.value)}
+            placeholder="Ej. Sin interés · largo plazo"
+            style={textInputStyle}
+          />
+        </div>
+
+        <button
+          onClick={() => canSave && onSave({ who: who.trim(), amt, rate, level, label: label.trim() })}
+          disabled={!canSave}
+          style={{
+            width: '100%', padding: '15px',
+            background: canSave ? MACACO.primary : MACACO.cardElev,
+            color: canSave ? '#0A0A0F' : MACACO.textMuted,
+            border: canSave ? 'none' : `1px solid ${MACACO.border}`,
+            borderRadius: 12, fontSize: 13.5, fontWeight: 800, letterSpacing: '0.04em',
+            cursor: canSave ? 'pointer' : 'not-allowed', fontFamily: 'inherit',
+            boxShadow: canSave ? `0 0 20px ${MACACO.primary}44` : 'none',
+          }}
+        >
+          {canSave ? (isNew ? 'AGREGAR DEUDA' : 'GUARDAR CAMBIOS') : 'COMPLETA LOS CAMPOS'}
+        </button>
+
+        {!isNew && (
+          <button
+            onClick={() => { if (window.confirm(`¿Eliminar la deuda de ${deuda.who}?`)) onDelete(deuda.id); }}
+            style={{
+              width: '100%', padding: '12px', marginTop: 10,
+              background: 'transparent', border: 'none',
+              color: MACACO.danger, fontSize: 12.5, fontWeight: 700,
+              cursor: 'pointer', fontFamily: 'inherit',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            }}
+          >
+            <Icon.trash size={13} /> Eliminar deuda
+          </button>
+        )}
       </div>
     </div>
   );
