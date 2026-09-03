@@ -1,8 +1,12 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from './services/supabaseAuth.js';
 
-// Cuenta única compartida — el usuario solo ingresa la contraseña, sin ver el correo.
-const ACCOUNT_EMAIL = 'makakosuplementos@gmail.com';
+// Dos cuentas conocidas (Felipe y su papá) — el usuario elige quién es y
+// solo ingresa su contraseña, sin ver ni escribir el correo.
+export const CUENTAS = {
+  felipe: { label: 'Felipe', email: 'makakosuplementos@gmail.com' },
+  papa:   { label: 'Papá',   email: 'alraymundo@hotmail.com' },
+};
 
 const AuthContext = createContext(null);
 
@@ -20,9 +24,11 @@ export function AuthProvider({ children }) {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  const signIn = useCallback(async (password) => {
+  const signIn = useCallback(async (quien, password) => {
     setAuthError(null);
-    const { error } = await supabase.auth.signInWithPassword({ email: ACCOUNT_EMAIL, password });
+    const cuenta = CUENTAS[quien];
+    if (!cuenta) { setAuthError('Cuenta inválida'); return false; }
+    const { error } = await supabase.auth.signInWithPassword({ email: cuenta.email, password });
     if (error) setAuthError(error.message);
     return !error;
   }, []);
