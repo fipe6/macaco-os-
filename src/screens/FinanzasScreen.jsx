@@ -4,12 +4,13 @@ import { Card, SectionTitle, Progress, Dot, Icon } from '../components/ui.jsx';
 import { Screen } from '../components/Screen.jsx';
 import { sendDeudaUpdate } from '../services/webhook.js';
 import { useApp } from '../store.jsx';
-import { gastosDelMes, sumarGastos, MESES } from '../store.jsx';
+import { gastosDelMes, sumarGastos, MESES, calcBalancePersonal, alertasVencimiento } from '../store.jsx';
 
 const ALERTA_GASTOS_NEGOCIO = 273_000;
 
-export default function FinanzasScreen() {
-  const { deudas, caja, config, gastos, pagarDeuda, ajustarCaja, agregarDeuda, editarDeuda, eliminarDeuda } = useApp();
+export default function FinanzasScreen({ go }) {
+  const { deudas, caja, config, gastos, pagarDeuda, ajustarCaja, agregarDeuda, editarDeuda, eliminarDeuda,
+          activos, porCobrar, pasivos, productos } = useApp();
   const [pagoSheet, setPagoSheet]   = useState(null);
   const [ajusteCaja, setAjusteCaja] = useState(false);
   const [deudaSheet, setDeudaSheet] = useState(null); // null | 'new' | deuda
@@ -33,6 +34,10 @@ export default function FinanzasScreen() {
   const totalNegocioAnt = sumarGastos(gMesAnt.filter(g => g.tipo === 'negocio'));
   const totalPersonalAnt= sumarGastos(gMesAnt.filter(g => g.tipo === 'personal'));
   const mesNombre       = MESES[hoy.getMonth()];
+
+  // Resumen del módulo personal — el detalle vive en PersonalScreen.
+  const balancePersonal = calcBalancePersonal({ activos, porCobrar, pasivos, productos });
+  const vencenPronto    = alertasVencimiento(pasivos, 60).length;
 
   const handlePago = async (id, monto) => {
     pagarDeuda(id, monto);
@@ -125,7 +130,40 @@ export default function FinanzasScreen() {
         </Card>
       )}
 
-      <SectionTitle right={clp(totalDebt) + ' total'}>Deudas</SectionTitle>
+
+      {/* Finanzas personales — acceso al módulo */}
+      <Card
+        onClick={() => go('personal')}
+        style={{ marginBottom: 18 }}
+        padding={16}
+        accent={balancePersonal.neto < 0 ? 'rgba(255,77,77,0.28)' : 'rgba(0,230,118,0.28)'}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 10.5, color: MACACO.textDim, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+              Finanzas personales
+            </div>
+            <div style={{
+              fontSize: 24, fontWeight: 800, letterSpacing: '-0.02em', marginTop: 6,
+              color: balancePersonal.neto < 0 ? MACACO.danger : MACACO.success,
+              fontVariantNumeric: 'tabular-nums',
+            }}>
+              {clp(balancePersonal.neto)}
+            </div>
+            <div style={{ fontSize: 11.5, color: MACACO.textMuted, marginTop: 4 }}>
+              Patrimonio neto · {clp(balancePersonal.totalCobrar)} por cobrar
+              {vencenPronto > 0 && (
+                <span style={{ color: MACACO.orange }}> · {vencenPronto} por vencer</span>
+              )}
+            </div>
+          </div>
+          <span style={{ color: MACACO.textMuted, flexShrink: 0, marginLeft: 10 }}>
+            <Icon.arrowRight size={16} />
+          </span>
+        </div>
+      </Card>
+
+      <SectionTitle right={clp(totalDebt) + ' total'}>Deudas del negocio</SectionTitle>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 10 }}>
         {deudas.length === 0 ? (
           <Card>

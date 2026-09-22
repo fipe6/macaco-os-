@@ -10,6 +10,7 @@ import InventarioScreen from './screens/InventarioScreen.jsx';
 import ReportesScreen from './screens/ReportesScreen.jsx';
 import ConfigScreen from './screens/ConfigScreen.jsx';
 import GastoScreen from './screens/GastoScreen.jsx';
+import PersonalScreen from './screens/PersonalScreen.jsx';
 import { flushQueue } from './services/webhook.js';
 import { DB_HABILITADO } from './services/supabase.js';
 import { useApp } from './store.jsx';
@@ -113,7 +114,7 @@ function DBStatusBadge({ error }) {
   );
 }
 
-const APP_VERSION = '1788451688';
+const APP_VERSION = '1790041294';
 
 function AppInner() {
   const [screen, setScreen]           = useState('home');
@@ -176,6 +177,7 @@ function AppInner() {
     venta:      <VentaScreen go={go} />,
     gasto:      <GastoScreen go={go} />,
     finanzas:   <FinanzasScreen go={go} />,
+    personal:   <PersonalScreen go={go} />,
     inventario: <InventarioScreen go={go} />,
     reportes:   <ReportesScreen go={go} />,
     config:     <ConfigScreen go={go} />,
@@ -272,7 +274,7 @@ function AppInner() {
             </div>
           )}
 
-          <BottomNav active={screen} go={go} />
+          <BottomNav active={screen === 'personal' ? 'finanzas' : screen} go={go} />
         </div>
       </IOSDevice>
     </div>

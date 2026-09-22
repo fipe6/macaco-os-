@@ -16,7 +16,7 @@ Deploy: https://macaco-os.vercel.app | Repo: https://github.com/fipe6/macaco-os-
 ```
 src/
   screens/         — HomeScreen, VentaScreen, GastoScreen, FinanzasScreen,
-                     InventarioScreen, ReportesScreen, ConfigScreen
+                     PersonalScreen, InventarioScreen, ReportesScreen, ConfigScreen
   components/      — BottomNav, IOSDevice, Screen, ui (Card, Icon, etc.)
   services/        — webhook.js (n8n, fire-and-forget)
                      supabase.js (proxy + fetch directo como fallback)
@@ -29,12 +29,32 @@ public/
   version.json     — {"v":"1780517844"} — fuerza recarga si versión no coincide
 ```
 
-## Estado actual (2026-06-03)
+## Estado actual (2026-09-22)
 - Fases 1 y 2 completas: KPIs reales, métricas avanzadas, módulo clientes
 - **Módulo Gastos completo**: GastoScreen, sección en Finanzas, ganancia neta en Reportes
+- **Módulo Finanzas Personales completo** (`PersonalScreen`, se entra desde Finanzas):
+  balance general con patrimonio neto, cuentas por cobrar, pasivos con tramos de
+  interés, metas de ahorro y proyección mes a mes
 - **Persistencia Supabase vía proxy** implementada y verificada
 - selfDestroying SW activo: mata cache viejo en celular al actualizar
 - Version check: /version.json detecta actualizaciones aunque SW esté cacheado
+
+## Finanzas personales (plan sep 2026)
+- Activos: Banco $453.000 · Reserva Valcarce $1.000.000 (intocable) · Capital creatina $500.000
+- Por cobrar: Sarek $300k, Nass $111k, Fabián $44k, Mamá $8k, Valcarce $25k
+- Pasivo Valcarce: capital $2.000.000 + tramos oct 10% / nov 5% / dic 5% = $2.400.000, vence 31-01-2027
+- Pasivo Mamá: $2.075.000, abono $100.000/mes ($48.000 beca del Estado + $52.000 propio)
+
+### Reglas de cálculo (no cambiar sin recalcular)
+- **Tramos de interés**: tasa fija por mes sobre el CAPITAL, no compuesta.
+  `saldoPasivo` = capital + interés de todos los tramos − pagos (compromiso a vencimiento).
+  `saldoPasivoHoy` = capital + solo el interés ya corrido − pagos.
+- **Aporte externo** (beca): baja el pasivo pero NO cuenta como gasto personal propio.
+- **Fondos reservados** (`reservado: true`): no se mezclan con caja operativa.
+- **Proyección**: parte de `netoHoy`/`pasivosHoy` y devenga el interés mes a mes —
+  partir del compromiso total lo contaría dos veces. Pagar deuda con plata propia es
+  neutro al patrimonio; lo mueven el flujo del mes, el aporte externo y el interés.
+- El inventario del balance se calcula en vivo desde `productos` (stock × costo).
 
 ## Datos reales del negocio
 - Deudas con interés: Benjamín $500k + Valcárce $700k (10%/mes c/u)
