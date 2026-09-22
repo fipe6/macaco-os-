@@ -11,6 +11,13 @@ const LS = {
   config:      'macaco:config',
   movimientos: 'macaco:movimientos',
   gastos:      'macaco:gastos',
+  // ── Finanzas personales ──
+  activos:     'macaco:activos',
+  porCobrar:   'macaco:porCobrar',
+  pasivos:     'macaco:pasivos',
+  metas:       'macaco:metas',
+  planPersonal:'macaco:planPersonal',
+  patrimonio:  'macaco:patrimonio',
 };
 
 function leer(key, fallback) {
@@ -70,6 +77,67 @@ const CONFIG_INICIAL = {
   colchonMinimo: 300_000,  alertaStockBajo: 3,
 };
 
+
+// ── Finanzas personales — semilla desde el Plan Financiero (sep 2026) ────────
+// Activos líquidos. `reservado: true` = fondo intocable, no se mezcla con caja
+// operativa del negocio ni se considera disponible para gastar.
+const ACTIVOS_INICIAL = [
+  { id: 'ac1', nombre: 'Banco',                       monto: 453_000,   reservado: false, nota: '' },
+  { id: 'ac2', nombre: 'Reserva Valcarce',            monto: 1_000_000, reservado: true,  nota: 'No se toca ni se mezcla con caja operativa' },
+  { id: 'ac3', nombre: 'Capital creatina',            monto: 500_000,   reservado: false, nota: 'Se reinvierte en tandas, no todo de una vez' },
+];
+
+// Cuentas por cobrar. El saldo se deriva: original − abonos.
+const POR_COBRAR_INICIAL = [
+  { id: 'pc1', persona: 'Sarek',    original: 300_000, abonos: [], nota: '' },
+  { id: 'pc2', persona: 'Nass',     original: 111_000, abonos: [], nota: '' },
+  { id: 'pc3', persona: 'Fabián',   original:  44_000, abonos: [], nota: '' },
+  { id: 'pc4', persona: 'Mamá',     original:   8_000, abonos: [], nota: '' },
+  { id: 'pc5', persona: 'Valcarce', original:  25_000, abonos: [], nota: '' },
+];
+
+// Pasivos personales. El saldo se deriva: capital + interés de tramos − pagos.
+// `tramos` son tasas fijas por mes (no compuestas): se aplican sobre el capital.
+// `aporteExterno` es la parte del abono mensual que NO sale del bolsillo propio
+// (ej. beca del Estado) — baja el pasivo pero no cuenta como gasto personal.
+const PASIVOS_INICIAL = [
+  {
+    id: 'pa1', acreedor: 'Valcarce', capital: 2_000_000,
+    tramos: [
+      { mes: '2026-10', tasa: 10 },
+      { mes: '2026-11', tasa: 5 },
+      { mes: '2026-12', tasa: 5 },
+    ],
+    vencimiento: '2027-01-31', abonoMensual: 0, aporteExterno: 0, pagos: [],
+    nota: 'Interés fijo por tramo sobre el capital · vence enero',
+  },
+  {
+    id: 'pa2', acreedor: 'Mamá', capital: 2_075_000, tramos: [],
+    vencimiento: null, abonoMensual: 100_000, aporteExterno: 48_000, pagos: [],
+    nota: '$48.000 beca del Estado + $52.000 aporte propio',
+  },
+];
+
+const METAS_INICIAL = [
+  {
+    id: 'me1', nombre: 'Fondo Valcarce', objetivo: 2_400_000, acumulado: 1_000_000,
+    fechaLimite: '2027-01-31', aportes: [],
+    nota: 'Debe quedar líquido y bajo control directo — sin inversiones de terceros',
+  },
+];
+
+// Plan mensual usado para proyectar el patrimonio a futuro.
+const PLAN_INICIAL = {
+  sueldoNegocio:    200_000,
+  margenPertigas:   100_000,
+  gananciaCreatina: 100_000,
+  abonoPropio:       52_000,
+  abonoExterno:      48_000,
+  gastoPersonal:          0,
+  desde:        '2026-10',
+  meses:                  5,
+};
+
 // ── Context ───────────────────────────────────────────────────────────────────
 const AppContext = createContext(null);
 
@@ -81,12 +149,19 @@ export function AppProvider({ children }) {
   const [config,      setConfigRaw]   = useState(() => leer(LS.config,      CONFIG_INICIAL));
   const [movimientos, setMovimientos] = useState(() => leer(LS.movimientos, []));
   const [gastos,      setGastos]      = useState(() => leer(LS.gastos,      []));
+  const [activos,     setActivos]     = useState(() => leer(LS.activos,     ACTIVOS_INICIAL));
+  const [porCobrar,   setPorCobrar]   = useState(() => leer(LS.porCobrar,   POR_COBRAR_INICIAL));
+  const [pasivos,     setPasivos]     = useState(() => leer(LS.pasivos,     PASIVOS_INICIAL));
+  const [metas,       setMetas]       = useState(() => leer(LS.metas,       METAS_INICIAL));
+  const [planPersonal, setPlanRaw]    = useState(() => leer(LS.planPersonal, PLAN_INICIAL));
+  const [patrimonio,  setPatrimonio]  = useState(() => leer(LS.patrimonio,  []));
   const [cargandoDB,  setCargandoDB]  = useState(true);
   const [errorDB,     setErrorDB]     = useState(null);
 
   // Refs para leer estado actual dentro de callbacks sin dependencias
   const refs = useRef({});
-  refs.current = { productos, ventas, deudas, caja, config, movimientos, gastos };
+  refs.current = { productos, ventas, deudas, caja, config, movimientos, gastos,
+                   activos, porCobrar, pasivos, metas, planPersonal, patrimonio };
 
   // ── Persistir a localStorage en cada cambio (backup rápido) ───────────────
   useEffect(() => { guardar(LS.productos,   productos);   }, [productos]);
@@ -96,6 +171,12 @@ export function AppProvider({ children }) {
   useEffect(() => { guardar(LS.config,      config);      }, [config]);
   useEffect(() => { guardar(LS.movimientos, movimientos); }, [movimientos]);
   useEffect(() => { guardar(LS.gastos,      gastos);      }, [gastos]);
+  useEffect(() => { guardar(LS.activos,     activos);     }, [activos]);
+  useEffect(() => { guardar(LS.porCobrar,   porCobrar);   }, [porCobrar]);
+  useEffect(() => { guardar(LS.pasivos,     pasivos);     }, [pasivos]);
+  useEffect(() => { guardar(LS.metas,       metas);       }, [metas]);
+  useEffect(() => { guardar(LS.planPersonal, planPersonal); }, [planPersonal]);
+  useEffect(() => { guardar(LS.patrimonio,  patrimonio);  }, [patrimonio]);
 
   // ── Cargar desde Supabase al iniciar ──────────────────────────────────────
   useEffect(() => {
@@ -130,6 +211,12 @@ export function AppProvider({ children }) {
         if (m[LS.config])                     setConfigRaw(m[LS.config]);
         if (Array.isArray(m[LS.movimientos])) setMovimientos(m[LS.movimientos]);
         if (Array.isArray(m[LS.gastos]))      setGastos(m[LS.gastos]);
+        if (Array.isArray(m[LS.activos]))     setActivos(m[LS.activos]);
+        if (Array.isArray(m[LS.porCobrar]))   setPorCobrar(m[LS.porCobrar]);
+        if (Array.isArray(m[LS.pasivos]))     setPasivos(m[LS.pasivos]);
+        if (Array.isArray(m[LS.metas]))       setMetas(m[LS.metas]);
+        if (m[LS.planPersonal])               setPlanRaw(m[LS.planPersonal]);
+        if (Array.isArray(m[LS.patrimonio]))  setPatrimonio(m[LS.patrimonio]);
         console.log('[db] ✅ datos restaurados desde Supabase');
       } else {
         // Primera vez: subir el estado actual a Supabase
@@ -142,6 +229,12 @@ export function AppProvider({ children }) {
           { clave: LS.config,      valor: estado.config },
           { clave: LS.movimientos, valor: estado.movimientos },
           { clave: LS.gastos,      valor: estado.gastos },
+          { clave: LS.activos,     valor: estado.activos },
+          { clave: LS.porCobrar,   valor: estado.porCobrar },
+          { clave: LS.pasivos,     valor: estado.pasivos },
+          { clave: LS.metas,       valor: estado.metas },
+          { clave: LS.planPersonal, valor: estado.planPersonal },
+          { clave: LS.patrimonio,  valor: estado.patrimonio },
         ].map(f => ({ ...f, actualizado_en: new Date().toISOString() }));
 
         await upsertRows('app_data', filas);
@@ -174,6 +267,12 @@ export function AppProvider({ children }) {
           case LS.config:      setConfigRaw(row.valor);   break;
           case LS.movimientos: setMovimientos(row.valor); break;
           case LS.gastos:      setGastos(row.valor);      break;
+          case LS.activos:     setActivos(row.valor);     break;
+          case LS.porCobrar:   setPorCobrar(row.valor);   break;
+          case LS.pasivos:     setPasivos(row.valor);     break;
+          case LS.metas:       setMetas(row.valor);       break;
+          case LS.planPersonal: setPlanRaw(row.valor);    break;
+          case LS.patrimonio:  setPatrimonio(row.valor);  break;
           default: break;
         }
       })
@@ -350,13 +449,183 @@ export function AppProvider({ children }) {
     });
   }, []);
 
+  // ── Finanzas personales ──────────────────────────────────────────────────
+
+  const agregarActivo = useCallback((a) => {
+    setActivos(prev => {
+      const v = [...prev, {
+        id: Date.now().toString(), nombre: a.nombre, monto: a.monto || 0,
+        reservado: !!a.reservado, nota: a.nota || '',
+      }];
+      pushDB(LS.activos, v);
+      return v;
+    });
+  }, []);
+
+  const editarActivo = useCallback((id, cambios) => {
+    setActivos(prev => {
+      const v = prev.map(a => a.id !== id ? a : { ...a, ...cambios });
+      pushDB(LS.activos, v);
+      return v;
+    });
+  }, []);
+
+  const eliminarActivo = useCallback((id) => {
+    setActivos(prev => {
+      const v = prev.filter(a => a.id !== id);
+      pushDB(LS.activos, v);
+      return v;
+    });
+  }, []);
+
+  const agregarPorCobrar = useCallback((c) => {
+    setPorCobrar(prev => {
+      const v = [...prev, {
+        id: Date.now().toString(), persona: c.persona,
+        original: c.original || 0, abonos: [], nota: c.nota || '',
+      }];
+      pushDB(LS.porCobrar, v);
+      return v;
+    });
+  }, []);
+
+  // Registra un abono recibido. Suma a caja solo si el dinero entró al negocio.
+  const abonarPorCobrar = useCallback((id, monto, aCaja = false) => {
+    setPorCobrar(prev => {
+      const v = prev.map(c => c.id !== id ? c : {
+        ...c,
+        abonos: [...(c.abonos || []), { id: Date.now().toString(), fecha: new Date().toISOString(), monto }],
+      });
+      pushDB(LS.porCobrar, v);
+      return v;
+    });
+    if (aCaja) {
+      setCaja(prev => {
+        const c = prev + monto;
+        pushDB(LS.caja, c);
+        return c;
+      });
+    }
+  }, []);
+
+  const eliminarPorCobrar = useCallback((id) => {
+    setPorCobrar(prev => {
+      const v = prev.filter(c => c.id !== id);
+      pushDB(LS.porCobrar, v);
+      return v;
+    });
+  }, []);
+
+  const agregarPasivo = useCallback((d) => {
+    setPasivos(prev => {
+      const v = [...prev, {
+        id: Date.now().toString(), acreedor: d.acreedor, capital: d.capital || 0,
+        tramos: d.tramos || [], vencimiento: d.vencimiento || null,
+        abonoMensual: d.abonoMensual || 0, aporteExterno: d.aporteExterno || 0,
+        pagos: [], nota: d.nota || '',
+      }];
+      pushDB(LS.pasivos, v);
+      return v;
+    });
+  }, []);
+
+  const editarPasivo = useCallback((id, cambios) => {
+    setPasivos(prev => {
+      const v = prev.map(d => d.id !== id ? d : { ...d, ...cambios });
+      pushDB(LS.pasivos, v);
+      return v;
+    });
+  }, []);
+
+  const eliminarPasivo = useCallback((id) => {
+    setPasivos(prev => {
+      const v = prev.filter(d => d.id !== id);
+      pushDB(LS.pasivos, v);
+      return v;
+    });
+  }, []);
+
+  // `externo` = la parte del pago que no salió del bolsillo propio (ej. beca).
+  const pagarPasivo = useCallback((id, monto, externo = 0) => {
+    setPasivos(prev => {
+      const v = prev.map(d => d.id !== id ? d : {
+        ...d,
+        pagos: [...(d.pagos || []), {
+          id: Date.now().toString(), fecha: new Date().toISOString(),
+          monto, externo: Math.min(externo, monto),
+        }],
+      });
+      pushDB(LS.pasivos, v);
+      return v;
+    });
+  }, []);
+
+  const agregarMeta = useCallback((m) => {
+    setMetas(prev => {
+      const v = [...prev, {
+        id: Date.now().toString(), nombre: m.nombre, objetivo: m.objetivo || 0,
+        acumulado: m.acumulado || 0, fechaLimite: m.fechaLimite || null,
+        aportes: [], nota: m.nota || '',
+      }];
+      pushDB(LS.metas, v);
+      return v;
+    });
+  }, []);
+
+  const aportarMeta = useCallback((id, monto) => {
+    setMetas(prev => {
+      const v = prev.map(m => m.id !== id ? m : {
+        ...m,
+        acumulado: Math.max(0, m.acumulado + monto),
+        aportes: [...(m.aportes || []), { id: Date.now().toString(), fecha: new Date().toISOString(), monto }],
+      });
+      pushDB(LS.metas, v);
+      return v;
+    });
+  }, []);
+
+  const eliminarMeta = useCallback((id) => {
+    setMetas(prev => {
+      const v = prev.filter(m => m.id !== id);
+      pushDB(LS.metas, v);
+      return v;
+    });
+  }, []);
+
+  const setPlanPersonal = useCallback((cambios) => {
+    setPlanRaw(prev => {
+      const v = { ...prev, ...cambios };
+      pushDB(LS.planPersonal, v);
+      return v;
+    });
+  }, []);
+
+  // Guarda un punto de la evolución del patrimonio — uno por día, el último manda.
+  const snapshotPatrimonio = useCallback((punto) => {
+    setPatrimonio(prev => {
+      const dia = (punto.fecha || new Date().toISOString()).slice(0, 10);
+      const sinHoy = prev.filter(x => x.fecha.slice(0, 10) !== dia);
+      const v = [...sinHoy, { ...punto, fecha: dia }]
+        .sort((a, b) => a.fecha.localeCompare(b.fecha))
+        .slice(-180);
+      pushDB(LS.patrimonio, v);
+      return v;
+    });
+  }, []);
+
   return (
     <AppContext.Provider value={{
       productos, ventas, deudas, caja, config, movimientos, gastos,
+      activos, porCobrar, pasivos, metas, planPersonal, patrimonio,
       cargandoDB, errorDB,
       registrarVenta, cancelarVenta, agregarProducto, moverStock, editarProducto,
       registrarMovimiento, pagarDeuda, agregarDeuda, editarDeuda, eliminarDeuda,
       ajustarCaja, setConfig, registrarGasto,
+      agregarActivo, editarActivo, eliminarActivo,
+      agregarPorCobrar, abonarPorCobrar, eliminarPorCobrar,
+      agregarPasivo, editarPasivo, eliminarPasivo, pagarPasivo,
+      agregarMeta, aportarMeta, eliminarMeta,
+      setPlanPersonal, snapshotPatrimonio,
     }}>
       {children}
     </AppContext.Provider>
@@ -442,4 +711,151 @@ export function getResumenClientes(ventas) {
     m[key].productos[v.producto]+=v.cantidad;
   });
   return Object.values(m).map(c=>({...c, ticketPromedio:c.ltv/c.compras, margenPct:c.ltv>0?(c.margen/c.ltv)*100:0, topProducto:Object.entries(c.productos).sort((a,b)=>b[1]-a[1])[0]?.[0]||'—'})).sort((a,b)=>b.ltv-a.ltv);
+}
+
+// ── Finanzas personales — cálculos ────────────────────────────────────────────
+// Clave de mes 'YYYY-MM' — se comparan como strings, sin líos de zona horaria.
+export const mesKey = (fecha = new Date()) =>
+  `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`;
+
+export function mesLabel(key) {
+  const [a, m] = (key || '').split('-');
+  const i = parseInt(m, 10) - 1;
+  return MESES[i] ? `${MESES[i]} ${a}` : key;
+}
+
+export function mesSiguiente(key) {
+  const [a, m] = key.split('-').map(Number);
+  return m === 12 ? `${a + 1}-01` : `${a}-${String(m + 1).padStart(2, '0')}`;
+}
+
+// Interés de los tramos ya cumplidos a la fecha. Tasa fija sobre el capital
+// (no compuesta): oct 10% + nov 5% + dic 5% sobre $2.000.000 = $400.000.
+export function interesDevengado(pasivo, hasta = new Date()) {
+  const tope = mesKey(hasta);
+  return (pasivo.tramos || [])
+    .filter(t => t.mes <= tope)
+    .reduce((s, t) => s + pasivo.capital * t.tasa / 100, 0);
+}
+
+export function interesTotal(pasivo) {
+  return (pasivo.tramos || []).reduce((s, t) => s + pasivo.capital * t.tasa / 100, 0);
+}
+
+export function pagadoPasivo(pasivo)  { return (pasivo.pagos || []).reduce((s, p) => s + p.monto, 0); }
+export function pagadoExterno(pasivo) { return (pasivo.pagos || []).reduce((s, p) => s + (p.externo || 0), 0); }
+export function pagadoPropio(pasivo)  { return pagadoPasivo(pasivo) - pagadoExterno(pasivo); }
+
+// Compromiso total: lo que hay que pagar al vencimiento, con todo el interés.
+export function saldoPasivo(pasivo) {
+  return Math.max(0, pasivo.capital + interesTotal(pasivo) - pagadoPasivo(pasivo));
+}
+// Lo exigible hoy: capital + solo el interés ya corrido.
+export function saldoPasivoHoy(pasivo, hasta = new Date()) {
+  return Math.max(0, pasivo.capital + interesDevengado(pasivo, hasta) - pagadoPasivo(pasivo));
+}
+
+export function saldoPorCobrar(cuenta) {
+  const abonado = (cuenta.abonos || []).reduce((s, a) => s + a.monto, 0);
+  return Math.max(0, cuenta.original - abonado);
+}
+
+export function inventarioACosto(productos) {
+  return productos.reduce((s, p) => s + p.stock * p.cost, 0);
+}
+
+// Balance general: activos (líquido + por cobrar + inventario) vs pasivos.
+export function calcBalancePersonal({ activos = [], porCobrar = [], pasivos = [], productos = [] }) {
+  const reservado    = activos.filter(a => a.reservado).reduce((s, a) => s + a.monto, 0);
+  const liquido      = activos.reduce((s, a) => s + a.monto, 0);
+  const disponible   = liquido - reservado;
+  const totalCobrar  = porCobrar.reduce((s, c) => s + saldoPorCobrar(c), 0);
+  const inventario   = inventarioACosto(productos);
+  const totalActivos = liquido + totalCobrar + inventario;
+  const totalPasivos = pasivos.reduce((s, p) => s + saldoPasivo(p), 0);
+  const pasivosHoy   = pasivos.reduce((s, p) => s + saldoPasivoHoy(p), 0);
+  return {
+    liquido, reservado, disponible, totalCobrar, inventario,
+    totalActivos, totalPasivos, pasivosHoy,
+    neto: totalActivos - totalPasivos,
+    netoHoy: totalActivos - pasivosHoy,
+  };
+}
+
+// Gasto personal real: los aportes externos (beca) bajan el pasivo pero no
+// salen del bolsillo, así que no cuentan como gasto propio.
+export function calcGastoPersonalReal(gastos, pasivos, fecha = new Date()) {
+  const mes = fecha.getMonth(), año = fecha.getFullYear();
+  const enMes = (f) => { const d = new Date(f); return d.getMonth() === mes && d.getFullYear() === año; };
+
+  const gastosPropios = gastos.filter(g => g.tipo === 'personal' && enMes(g.fecha))
+    .reduce((s, g) => s + g.monto, 0);
+
+  let deudaPropia = 0, deudaExterna = 0;
+  pasivos.forEach(p => (p.pagos || []).filter(x => enMes(x.fecha)).forEach(x => {
+    deudaExterna += x.externo || 0;
+    deudaPropia  += x.monto - (x.externo || 0);
+  }));
+
+  return {
+    gastosPropios, deudaPropia, deudaExterna,
+    real: gastosPropios + deudaPropia,          // lo que de verdad salió del bolsillo
+    totalPasivoPagado: deudaPropia + deudaExterna,
+  };
+}
+
+// Proyección mes a mes del patrimonio neto dado un plan de ingresos/egresos.
+// Arranca del saldo EXIGIBLE hoy (capital + interés ya corrido) y va devengando
+// el interés mes a mes: partir del compromiso total lo contaría dos veces.
+// Pagar deuda con plata propia es neutro al patrimonio (baja activo y pasivo por
+// igual); lo que mueve la aguja es el flujo del mes, el aporte externo (beca) y
+// el interés que se devenga.
+export function proyectarPatrimonio({ balance, plan, pasivos = [] }) {
+  const meses = Math.max(1, plan.meses || 5);
+  let neto   = balance.netoHoy;
+  let pasivo = balance.pasivosHoy;
+  let mes    = plan.desde || mesKey();
+
+  return Array.from({ length: meses }, () => {
+    const ingresos = (plan.sueldoNegocio || 0) + (plan.margenPertigas || 0) + (plan.gananciaCreatina || 0);
+    const interes  = pasivos.reduce((s, p) => {
+      const t = (p.tramos || []).find(t => t.mes === mes);
+      return s + (t ? p.capital * t.tasa / 100 : 0);
+    }, 0);
+    const abonoPropio  = plan.abonoPropio  || 0;
+    const abonoExterno = plan.abonoExterno || 0;
+
+    // Deuda que vence este mes: se salda por lo devengado hasta acá.
+    const vence = pasivos.filter(p => p.vencimiento && p.vencimiento.slice(0, 7) === mes);
+    const saldado = vence.reduce((s, p) => {
+      const acumulado = (p.tramos || [])
+        .filter(t => t.mes <= mes)
+        .reduce((a, t) => a + p.capital * t.tasa / 100, 0);
+      return s + Math.max(0, p.capital + acumulado - pagadoPasivo(p));
+    }, 0);
+
+    neto   = neto + (ingresos - (plan.gastoPersonal || 0)) + abonoExterno - interes;
+    pasivo = Math.max(0, pasivo + interes - abonoPropio - abonoExterno - saldado);
+
+    const fila = {
+      mes, label: mesLabel(mes), ingresos, interes, abonoPropio, abonoExterno, pasivo,
+      neto, saldado,
+      hito: vence.length ? `Se paga ${vence.map(p => p.acreedor).join(' y ')} completo` : null,
+    };
+    mes = mesSiguiente(mes);
+    return fila;
+  });
+}
+
+// Deudas que vencen dentro de los próximos `dias` días.
+export function alertasVencimiento(pasivos, dias = 60, hoy = new Date()) {
+  const limite = new Date(hoy); limite.setDate(limite.getDate() + dias);
+  return pasivos
+    .filter(p => p.vencimiento && saldoPasivo(p) > 0)
+    .map(p => {
+      const v = new Date(p.vencimiento + 'T12:00:00');
+      return { ...p, fechaVenc: v, diasRestantes: Math.ceil((v - hoy) / 86_400_000), saldo: saldoPasivo(p) };
+    })
+    .filter(p => p.fechaVenc <= limite)
+    .sort((a, b) => a.diasRestantes - b.diasRestantes);
 }
