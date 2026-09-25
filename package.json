@@ -8,7 +8,8 @@
     "start": "vite --host",
     "dev": "vite --host",
     "build": "vite build",
-    "preview": "vite preview --host"
+    "preview": "vite preview --host",
+    "test": "node --test src/corteza.test.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.107.0",
