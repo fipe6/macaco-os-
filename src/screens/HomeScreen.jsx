@@ -1,12 +1,20 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { MACACO, clp, clpCompact } from '../theme.js';
 import { Card, SectionTitle, Progress, Trend, Dot, Icon } from '../components/ui.jsx';
 import { Screen, GreetingHeader } from '../components/Screen.jsx';
 import { useApp } from '../store.jsx';
-import { ventasDelDia, ventasDelMes, getDiasDelMes, sumarTotal, sumarMargen, MESES } from '../store.jsx';
+import { ventasDelDia, ventasDelMes, getDiasDelMes, sumarTotal, sumarMargen, MESES, alertasVencimiento, saldoPorCobrar } from '../store.jsx';
+import { escanearCorteza } from '../corteza.js';
 
 export default function HomeScreen({ go }) {
-  const { ventas, productos, deudas, caja, config } = useApp();
+  const { ventas, productos, deudas, caja, config, gastos, porCobrar, pasivos, corteza } = useApp();
+
+  const cortezaPendientes = useMemo(() => escanearCorteza({
+    productos, ventas, gastos, deudas, caja, config,
+    porCobrar: porCobrar.map(c => ({ ...c, saldo: saldoPorCobrar(c) })),
+    vencimientos: alertasVencimiento(pasivos, 60),
+  }).decisiones.filter(d => !corteza[d.id]), [productos, ventas, gastos, deudas, caja, config, porCobrar, pasivos, corteza]);
+  const cortezaAltas = cortezaPendientes.filter(d => d.prioridad === 'alta').length;
 
   const hoy        = new Date();
   const mesNombre  = MESES[hoy.getMonth()];
@@ -126,6 +134,30 @@ export default function HomeScreen({ go }) {
         }}>
           <span>Faltan <b style={{ color: '#fff', fontWeight: 600 }}>{clp(faltanMes)}</b></span>
           <span>{diasRestantes} días restantes</span>
+        </div>
+      </Card>
+
+      {/* Corteza prefrontal — acceso al motor de decisiones */}
+      <Card onClick={() => go('corteza')} style={{ marginBottom: 14 }} padding={14}
+            accent={cortezaAltas > 0 ? 'rgba(245,197,24,0.3)' : undefined}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{
+            width: 32, height: 32, borderRadius: 10, flexShrink: 0, fontSize: 17,
+            background: 'rgba(245,197,24,0.12)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>🧠</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 10.5, color: MACACO.primary, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+              Corteza prefrontal
+            </div>
+            <div style={{ fontSize: 13, marginTop: 3, color: '#fff' }}>
+              {cortezaPendientes.length === 0
+                ? 'Sin decisiones pendientes'
+                : <><b>{cortezaPendientes.length}</b> {cortezaPendientes.length > 1 ? 'decisiones' : 'decisión'} por revisar
+                    {cortezaAltas > 0 && <span style={{ color: MACACO.danger }}> · {cortezaAltas} alta{cortezaAltas > 1 ? 's' : ''}</span>}</>}
+            </div>
+          </div>
+          <span style={{ color: MACACO.textMuted }}><Icon.arrowRight size={16} /></span>
         </div>
       </Card>
 

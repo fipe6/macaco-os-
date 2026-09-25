@@ -18,6 +18,8 @@ const LS = {
   metas:       'macaco:metas',
   planPersonal:'macaco:planPersonal',
   patrimonio:  'macaco:patrimonio',
+  // ── Corteza prefrontal ──
+  corteza:     'macaco:corteza',
 };
 
 function leer(key, fallback) {
@@ -155,13 +157,14 @@ export function AppProvider({ children }) {
   const [metas,       setMetas]       = useState(() => leer(LS.metas,       METAS_INICIAL));
   const [planPersonal, setPlanRaw]    = useState(() => leer(LS.planPersonal, PLAN_INICIAL));
   const [patrimonio,  setPatrimonio]  = useState(() => leer(LS.patrimonio,  []));
+  const [corteza,     setCorteza]     = useState(() => leer(LS.corteza,     {}));
   const [cargandoDB,  setCargandoDB]  = useState(true);
   const [errorDB,     setErrorDB]     = useState(null);
 
   // Refs para leer estado actual dentro de callbacks sin dependencias
   const refs = useRef({});
   refs.current = { productos, ventas, deudas, caja, config, movimientos, gastos,
-                   activos, porCobrar, pasivos, metas, planPersonal, patrimonio };
+                   activos, porCobrar, pasivos, metas, planPersonal, patrimonio, corteza };
 
   // ── Persistir a localStorage en cada cambio (backup rápido) ───────────────
   useEffect(() => { guardar(LS.productos,   productos);   }, [productos]);
@@ -177,6 +180,7 @@ export function AppProvider({ children }) {
   useEffect(() => { guardar(LS.metas,       metas);       }, [metas]);
   useEffect(() => { guardar(LS.planPersonal, planPersonal); }, [planPersonal]);
   useEffect(() => { guardar(LS.patrimonio,  patrimonio);  }, [patrimonio]);
+  useEffect(() => { guardar(LS.corteza,     corteza);     }, [corteza]);
 
   // ── Cargar desde Supabase al iniciar ──────────────────────────────────────
   useEffect(() => {
@@ -217,6 +221,7 @@ export function AppProvider({ children }) {
         if (Array.isArray(m[LS.metas]))       setMetas(m[LS.metas]);
         if (m[LS.planPersonal])               setPlanRaw(m[LS.planPersonal]);
         if (Array.isArray(m[LS.patrimonio]))  setPatrimonio(m[LS.patrimonio]);
+        if (m[LS.corteza] && typeof m[LS.corteza] === 'object') setCorteza(m[LS.corteza]);
         console.log('[db] ✅ datos restaurados desde Supabase');
       } else {
         // Primera vez: subir el estado actual a Supabase
@@ -235,6 +240,7 @@ export function AppProvider({ children }) {
           { clave: LS.metas,       valor: estado.metas },
           { clave: LS.planPersonal, valor: estado.planPersonal },
           { clave: LS.patrimonio,  valor: estado.patrimonio },
+          { clave: LS.corteza,     valor: estado.corteza },
         ].map(f => ({ ...f, actualizado_en: new Date().toISOString() }));
 
         await upsertRows('app_data', filas);
@@ -273,6 +279,7 @@ export function AppProvider({ children }) {
           case LS.metas:       setMetas(row.valor);       break;
           case LS.planPersonal: setPlanRaw(row.valor);    break;
           case LS.patrimonio:  setPatrimonio(row.valor);  break;
+          case LS.corteza:     setCorteza(row.valor);     break;
           default: break;
         }
       })
@@ -613,10 +620,24 @@ export function AppProvider({ children }) {
     });
   }, []);
 
+  // ── Corteza prefrontal ───────────────────────────────────────────────────
+  // Solo registra la decisión humana sobre una señal (aprobada / descartada).
+  // No ejecuta nada: la acción la hace Felipe desde la pantalla que corresponda.
+  // `estado: null` devuelve la señal a pendientes.
+  const decidirCorteza = useCallback((id, estado, resumen = {}) => {
+    setCorteza(prev => {
+      const v = { ...prev };
+      if (estado) v[id] = { estado, fecha: new Date().toISOString(), senal: resumen.senal || '', accion: resumen.accion || '' };
+      else delete v[id];
+      pushDB(LS.corteza, v);
+      return v;
+    });
+  }, []);
+
   return (
     <AppContext.Provider value={{
       productos, ventas, deudas, caja, config, movimientos, gastos,
-      activos, porCobrar, pasivos, metas, planPersonal, patrimonio,
+      activos, porCobrar, pasivos, metas, planPersonal, patrimonio, corteza,
       cargandoDB, errorDB,
       registrarVenta, cancelarVenta, agregarProducto, moverStock, editarProducto,
       registrarMovimiento, pagarDeuda, agregarDeuda, editarDeuda, eliminarDeuda,
@@ -625,7 +646,7 @@ export function AppProvider({ children }) {
       agregarPorCobrar, abonarPorCobrar, eliminarPorCobrar,
       agregarPasivo, editarPasivo, eliminarPasivo, pagarPasivo,
       agregarMeta, aportarMeta, eliminarMeta,
-      setPlanPersonal, snapshotPatrimonio,
+      setPlanPersonal, snapshotPatrimonio, decidirCorteza,
     }}>
       {children}
     </AppContext.Provider>

@@ -20,6 +20,7 @@ src/
   components/      — BottomNav, IOSDevice, Screen, ui (Card, Icon, etc.)
   services/        — webhook.js (n8n, fire-and-forget)
                      supabase.js (proxy + fetch directo como fallback)
+  corteza.js       — motor de la Corteza Prefrontal (funciones puras, tests con `npm test`)
   theme.js         — design tokens MACACO.* + clp() + clpCompact()
   App.jsx          — router + LoadingDB spinner + DBStatusBadge + version check
   store.jsx        — estado global, pushDB() en cada acción, selectAll/upsertRows
@@ -35,6 +36,10 @@ public/
 - **Módulo Finanzas Personales completo** (`PersonalScreen`, se entra desde Finanzas):
   balance general con patrimonio neto, cuentas por cobrar, pasivos con tramos de
   interés, metas de ahorro y proyección mes a mes
+- **Corteza Prefrontal** (`CortezaScreen`, se entra desde Home): Radar + ROI + Skill Miner
+  sobre datos reales (deudas, stock, caja, meta, cobros, clientes, gastos). Cola de
+  decisiones priorizada; aprobar/descartar se guarda en `macaco:corteza` vía pushDB.
+  No ejecuta acciones ni muestra datos de ejemplo — sin historial no hay señal.
 - **Persistencia Supabase vía proxy** implementada y verificada
 - selfDestroying SW activo: mata cache viejo en celular al actualizar
 - Version check: /version.json detecta actualizaciones aunque SW esté cacheado
