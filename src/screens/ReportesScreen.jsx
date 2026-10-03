@@ -233,6 +233,10 @@ function ReporteMensual({ ventas, movimientos, productos, config, gastos }) {
         </div>
         <div style={{ fontSize: 32, fontWeight: 800, marginTop: 6, fontVariantNumeric: 'tabular-nums' }}>{clp(total)}</div>
         <div style={{ fontSize: 12, color: MACACO.textMuted, marginTop: 4 }}>de {clp(config.metaMensual)} meta</div>
+        {(() => { const t = ventasPorProducto(vMes).sort((a, b) => b.unidades - a.unidades)[0];
+          return t ? <div style={{ fontSize: 12, color: MACACO.textDim, marginTop: 8 }}>
+            Más vendido: <b style={{ color: '#fff' }}>{t.nombre}</b> ({t.unidades} u) · margen <b style={{ color: MACACO.success }}>{clp(margen)}</b>
+          </div> : null; })()}
         <div style={{ marginTop: 14 }}>
           <Progress value={pct} color={MACACO.primary} height={10} />
           <div style={{ marginTop: 6, fontSize: 11, color: MACACO.textMuted, textAlign: 'right' }}>{pct.toFixed(1)}%</div>
@@ -257,8 +261,14 @@ function ReporteMensual({ ventas, movimientos, productos, config, gastos }) {
                   <div style={{ fontSize: 14, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{clp(r.total)}</div>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 11, color: MACACO.textMuted }}>
-                  <span>{r.transacciones} venta{r.transacciones !== 1 ? 's' : ''} · gastos {clp(r.gastos)} · {pctMes.toFixed(0)}% meta</span>
-                  <span style={{ fontWeight: 700, color: r.neto >= 0 ? MACACO.success : MACACO.danger }}>neto {clp(r.neto)}</span>
+                  <span>{r.transacciones} venta{r.transacciones !== 1 ? 's' : ''} · {pctMes.toFixed(0)}% meta</span>
+                  <span>margen <b style={{ color: MACACO.success }}>{clp(r.margen)}</b> · gastos {clp(r.gastos)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3, fontSize: 11, color: MACACO.textMuted }}>
+                  <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {r.top ? <>Más vendido: <b style={{ color: '#fff' }}>{r.top.nombre}</b> ({r.top.unidades} u)</> : 'Sin ventas'}
+                  </span>
+                  <span style={{ fontWeight: 700, color: r.neto >= 0 ? MACACO.success : MACACO.danger, flexShrink: 0, marginLeft: 8 }}>neto {clp(r.neto)}</span>
                 </div>
               </div>
             );

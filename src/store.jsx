@@ -692,7 +692,8 @@ export function resumenMes(ventas, gastos, fecha) {
   const total  = sumarTotal(vMes);
   const cogs   = vMes.reduce((n, v) => n + v.costoUnitario * v.cantidad, 0);
   const gNeg   = gastosDelMes(gastos, fecha).filter(g => g.tipo === 'negocio').reduce((n, g) => n + g.monto, 0);
-  return { total, margen: sumarMargen(vMes), cogs, gastos: gNeg, neto: total - cogs - gNeg, transacciones: contarTransacciones(vMes) };
+  const top = ventasPorProducto(vMes).sort((a, b) => b.unidades - a.unidades)[0] || null;
+  return { total, margen: sumarMargen(vMes), cogs, gastos: gNeg, neto: total - cogs - gNeg, transacciones: contarTransacciones(vMes), top };
 }
 
 // Ventas por producto en una lista de ventas, con unidades, total y margen.
