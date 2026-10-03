@@ -11,6 +11,7 @@ const LS = {
   config:      'macaco:config',
   movimientos: 'macaco:movimientos',
   gastos:      'macaco:gastos',
+  pedidos:     'macaco:pedidos',
   // ── Finanzas personales ──
   activos:     'macaco:activos',
   porCobrar:   'macaco:porCobrar',
@@ -151,6 +152,7 @@ export function AppProvider({ children }) {
   const [config,      setConfigRaw]   = useState(() => leer(LS.config,      CONFIG_INICIAL));
   const [movimientos, setMovimientos] = useState(() => leer(LS.movimientos, []));
   const [gastos,      setGastos]      = useState(() => leer(LS.gastos,      []));
+  const [pedidos,     setPedidos]     = useState(() => leer(LS.pedidos,     []));
   const [activos,     setActivos]     = useState(() => leer(LS.activos,     ACTIVOS_INICIAL));
   const [porCobrar,   setPorCobrar]   = useState(() => leer(LS.porCobrar,   POR_COBRAR_INICIAL));
   const [pasivos,     setPasivos]     = useState(() => leer(LS.pasivos,     PASIVOS_INICIAL));
@@ -163,7 +165,7 @@ export function AppProvider({ children }) {
 
   // Refs para leer estado actual dentro de callbacks sin dependencias
   const refs = useRef({});
-  refs.current = { productos, ventas, deudas, caja, config, movimientos, gastos,
+  refs.current = { productos, ventas, deudas, caja, config, movimientos, gastos, pedidos,
                    activos, porCobrar, pasivos, metas, planPersonal, patrimonio, corteza };
 
   // ── Persistir a localStorage en cada cambio (backup rápido) ───────────────
@@ -174,6 +176,7 @@ export function AppProvider({ children }) {
   useEffect(() => { guardar(LS.config,      config);      }, [config]);
   useEffect(() => { guardar(LS.movimientos, movimientos); }, [movimientos]);
   useEffect(() => { guardar(LS.gastos,      gastos);      }, [gastos]);
+  useEffect(() => { guardar(LS.pedidos,     pedidos);     }, [pedidos]);
   useEffect(() => { guardar(LS.activos,     activos);     }, [activos]);
   useEffect(() => { guardar(LS.porCobrar,   porCobrar);   }, [porCobrar]);
   useEffect(() => { guardar(LS.pasivos,     pasivos);     }, [pasivos]);
@@ -215,6 +218,7 @@ export function AppProvider({ children }) {
         if (m[LS.config])                     setConfigRaw(m[LS.config]);
         if (Array.isArray(m[LS.movimientos])) setMovimientos(m[LS.movimientos]);
         if (Array.isArray(m[LS.gastos]))      setGastos(m[LS.gastos]);
+        if (Array.isArray(m[LS.pedidos]))     setPedidos(m[LS.pedidos]);
         if (Array.isArray(m[LS.activos]))     setActivos(m[LS.activos]);
         if (Array.isArray(m[LS.porCobrar]))   setPorCobrar(m[LS.porCobrar]);
         if (Array.isArray(m[LS.pasivos]))     setPasivos(m[LS.pasivos]);
@@ -234,6 +238,7 @@ export function AppProvider({ children }) {
           { clave: LS.config,      valor: estado.config },
           { clave: LS.movimientos, valor: estado.movimientos },
           { clave: LS.gastos,      valor: estado.gastos },
+          { clave: LS.pedidos,     valor: estado.pedidos },
           { clave: LS.activos,     valor: estado.activos },
           { clave: LS.porCobrar,   valor: estado.porCobrar },
           { clave: LS.pasivos,     valor: estado.pasivos },
@@ -273,6 +278,7 @@ export function AppProvider({ children }) {
           case LS.config:      setConfigRaw(row.valor);   break;
           case LS.movimientos: setMovimientos(row.valor); break;
           case LS.gastos:      setGastos(row.valor);      break;
+          case LS.pedidos:     setPedidos(row.valor);     break;
           case LS.activos:     setActivos(row.valor);     break;
           case LS.porCobrar:   setPorCobrar(row.valor);   break;
           case LS.pasivos:     setPasivos(row.valor);     break;
@@ -637,9 +643,56 @@ export function AppProvider({ children }) {
     });
   }, []);
 
+  // ── Pedidos a proveedores ─────────────────────────────────────────────────
+  const registrarPedido = useCallback((ped) => {
+    const nuevo = {
+      estado: 'pedido', ...ped,
+      id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
+      creadoEn: new Date().toISOString(),
+    };
+    setPedidos(prev => {
+      const n = [nuevo, ...prev];
+      pushDB(LS.pedidos, n);
+      return n;
+    });
+  }, []);
+
+  const actualizarPedido = useCallback((id, cambios) => {
+    setPedidos(prev => {
+      const n = prev.map(p => p.id !== id ? p : { ...p, ...cambios });
+      pushDB(LS.pedidos, n);
+      return n;
+    });
+  }, []);
+
+  const eliminarPedido = useCallback((id) => {
+    setPedidos(prev => {
+      const n = prev.filter(p => p.id !== id);
+      pushDB(LS.pedidos, n);
+      return n;
+    });
+  }, []);
+
+  // Al recibir un pedido: queda registrada la demora real y entra el stock.
+  const recibirPedido = useCallback((id, fechaLlegada) => {
+    const ped = refs.current.pedidos.find(p => p.id === id);
+    if (!ped || ped.estado === 'recibido') return;
+    actualizarPedido(id, { estado: 'recibido', fechaLlegada });
+    const prod = refs.current.productos.find(p => p.id === ped.productoId);
+    if (!prod) return;
+    const antes = prod.stock;
+    moverStock(prod.id, ped.cantidad);
+    registrarMovimiento({
+      productoId: prod.id, producto: prod.name, tipo: 'compra',
+      delta: ped.cantidad, stockAntes: antes, stockDespues: antes + ped.cantidad,
+      proveedor: ped.proveedor, pedidoId: ped.id,
+    });
+  }, [actualizarPedido, moverStock, registrarMovimiento]);
+
   return (
     <AppContext.Provider value={{
-      productos, ventas, deudas, caja, config, movimientos, gastos,
+      productos, ventas, deudas, caja, config, movimientos, gastos, pedidos,
+      registrarPedido, actualizarPedido, eliminarPedido, recibirPedido,
       activos, porCobrar, pasivos, metas, planPersonal, patrimonio, corteza,
       cargandoDB, errorDB,
       registrarVenta, cancelarVenta, agregarProducto, moverStock, editarProducto,
@@ -766,6 +819,81 @@ export function getResumenClientes(ventas) {
     m[key].productos[v.producto]+=v.cantidad;
   });
   return Object.values(m).map(c=>({...c, ticketPromedio:c.ltv/c.compras, margenPct:c.ltv>0?(c.margen/c.ltv)*100:0, topProducto:Object.entries(c.productos).sort((a,b)=>b[1]-a[1])[0]?.[0]||'—'})).sort((a,b)=>b.ltv-a.ltv);
+}
+
+// ── Pedidos a proveedores ─────────────────────────────────────────────────────
+// Fechas como 'YYYY-MM-DD' (hora local) para que los días de demora sean exactos.
+export const hoyISO = (d = new Date()) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+export function diasEntre(a, b) {
+  const [ya, ma, da] = a.split('-').map(Number);
+  const [yb, mb, db] = b.split('-').map(Number);
+  return Math.round((Date.UTC(yb, mb - 1, db) - Date.UTC(ya, ma - 1, da)) / 86400000);
+}
+
+export function sumarDias(iso, n) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return hoyISO(new Date(y, m - 1, d + n));
+}
+
+// Por proveedor: demora promedio real (pedido → llegada), cuánto se ha invertido y qué está en camino.
+export function resumenProveedores(pedidos) {
+  const m = {};
+  pedidos.filter(p => p.estado !== 'cancelado' && (p.proveedor || '').trim()).forEach(p => {
+    const k = p.proveedor.trim();
+    if (!m[k]) m[k] = { proveedor: k, tiempos: [], pedidos: 0, invertido: 0, enCamino: 0, ultimo: null };
+    const g = m[k];
+    g.pedidos++;
+    g.invertido += (p.costoUnitario || 0) * p.cantidad;
+    if (p.estado === 'recibido' && p.fechaLlegada) g.tiempos.push(diasEntre(p.fechaPedido, p.fechaLlegada));
+    else g.enCamino++;
+    if (!g.ultimo || p.fechaPedido > g.ultimo) g.ultimo = p.fechaPedido;
+  });
+  return Object.values(m).map(g => ({
+    ...g,
+    recibidos: g.tiempos.length,
+    promedio:  g.tiempos.length ? Math.round(g.tiempos.reduce((a, b) => a + b, 0) / g.tiempos.length * 10) / 10 : null,
+    min:       g.tiempos.length ? Math.min(...g.tiempos) : null,
+    max:       g.tiempos.length ? Math.max(...g.tiempos) : null,
+  })).sort((a, b) => b.invertido - a.invertido);
+}
+
+// Cuándo y cuánto pedir de cada producto, según su ritmo de venta y la demora
+// promedio del proveedor con el que se compró por última vez.
+export function sugerenciasReposicion({ productos, ventas, pedidos, hoy = new Date(), colchon = 5, cobertura = 30, leadDefecto = 7 }) {
+  if (ventas.length === 0) return [];
+  const hoyStr  = hoyISO(hoy);
+  const primera = ventas.reduce((min, v) => { const d = hoyISO(new Date(v.fecha)); return d < min ? d : min; }, hoyStr);
+  const ventana = Math.min(30, Math.max(7, diasEntre(primera, hoyStr) + 1));
+  const desde   = sumarDias(hoyStr, -(ventana - 1));
+  const unidades = {};
+  ventas.forEach(v => {
+    if (hoyISO(new Date(v.fecha)) >= desde) unidades[v.productoId] = (unidades[v.productoId] || 0) + v.cantidad;
+  });
+  const provs = resumenProveedores(pedidos);
+
+  return productos.map(p => {
+    const ritmo = (unidades[p.id] || 0) / ventana;
+    if (ritmo <= 0) return null;
+    const delProd  = pedidos.filter(x => x.productoId === p.id && x.estado !== 'cancelado')
+                            .sort((a, b) => b.fechaPedido.localeCompare(a.fechaPedido));
+    const proveedor = delProd[0]?.proveedor || null;
+    const leadReal  = provs.find(g => g.proveedor === proveedor)?.promedio ?? null;
+    const lead      = Math.ceil(leadReal ?? leadDefecto);
+    const enCamino  = delProd.filter(x => x.estado === 'pedido' || x.estado === 'en_camino').reduce((n, x) => n + x.cantidad, 0);
+    const diasStock = p.stock / ritmo;
+    const cantidad  = Math.max(0, Math.ceil(ritmo * (lead + colchon + cobertura) - p.stock - enCamino));
+    if (cantidad === 0) return null;
+    // Lo que ya viene en camino cuenta como cobertura: evita pedir de nuevo lo que ya se pidió.
+    const diasParaPedir = Math.floor((p.stock + enCamino) / ritmo - (lead + colchon));
+    return {
+      id: p.id, nombre: p.name, stock: p.stock, costo: p.cost, ritmo, diasStock: Math.floor(diasStock),
+      proveedor, lead, leadEstimado: leadReal === null, enCamino,
+      diasParaPedir, fechaPedir: sumarDias(hoyStr, Math.max(0, diasParaPedir)),
+      cantidad, inversion: cantidad * p.cost,
+    };
+  }).filter(Boolean).sort((a, b) => a.diasParaPedir - b.diasParaPedir);
 }
 
 // ── Finanzas personales — cálculos ────────────────────────────────────────────

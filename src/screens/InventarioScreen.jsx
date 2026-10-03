@@ -4,6 +4,7 @@ import { Card, SectionTitle, Dot, Icon } from '../components/ui.jsx';
 import { Screen } from '../components/Screen.jsx';
 import { sendProducto, sendStockUpdate, sincronizarCatalogo } from '../services/webhook.js';
 import { useApp } from '../store.jsx';
+import PedidosTab from './PedidosTab.jsx';
 
 const stepBtn = {
   width: 34, height: 34, borderRadius: 8,
@@ -15,6 +16,7 @@ const stepBtn = {
 
 export default function InventarioScreen() {
   const { productos, agregarProducto, moverStock, registrarMovimiento, editarProducto } = useApp();
+  const [vista, setVista]       = useState('stock'); // stock | pedidos
   const [q, setQ]               = useState('');
   const [showAdd, setShowAdd]   = useState(false);
   const [stockSheet, setStockSheet] = useState(null);
@@ -71,6 +73,28 @@ export default function InventarioScreen() {
         <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.02em', marginTop: 4 }}>Inventario</div>
       </div>
 
+      <div style={{
+        display: 'flex', background: MACACO.card,
+        border: `1px solid ${MACACO.border}`, borderRadius: 12, padding: 4, marginBottom: 14,
+      }}>
+        {[['stock', 'Stock'], ['pedidos', 'Pedidos']].map(([id, label]) => {
+          const active = vista === id;
+          return (
+            <button key={id} onClick={() => setVista(id)} style={{
+              flex: 1, padding: '9px 4px',
+              background: active ? MACACO.cardElev : 'transparent',
+              color: active ? '#fff' : MACACO.textDim,
+              border: 'none', borderRadius: 9,
+              fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+              boxShadow: active ? `inset 0 0 0 1px ${MACACO.border}` : 'none',
+              transition: '150ms',
+            }}>{label}</button>
+          );
+        })}
+      </div>
+
+      {vista === 'pedidos' ? <PedidosTab /> : (
+      <>
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10,
         background: MACACO.card, border: `1px solid ${MACACO.border}`,
@@ -228,6 +252,8 @@ export default function InventarioScreen() {
           onClose={() => setEditSheet(null)}
           onSave={(cambios) => handleEdit(editSheet.id, cambios)}
         />
+      )}
+      </>
       )}
     </Screen>
   );
