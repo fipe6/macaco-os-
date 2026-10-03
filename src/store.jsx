@@ -883,20 +883,28 @@ export function sumarDias(iso, n) {
   return hoyISO(new Date(y, m - 1, d + n));
 }
 
+// Proveedores habituales: aparecen siempre como opción al registrar un pedido.
+export const PROVEEDORES_BASE = ['Grizzly', 'Grober', 'Distribuidora Raw', 'HNS', 'SNS'];
+
 // Por proveedor: demora promedio real (pedido → llegada), cuánto se ha invertido y qué está en camino.
 export function resumenProveedores(pedidos) {
   const m = {};
   pedidos.filter(p => p.estado !== 'cancelado' && (p.proveedor || '').trim()).forEach(p => {
     const k = p.proveedor.trim();
-    if (!m[k]) m[k] = { proveedor: k, tiempos: [], pedidos: 0, invertido: 0, enCamino: 0, ultimo: null };
+    if (!m[k]) m[k] = { proveedor: k, tiempos: [], pedidos: 0, invertido: 0, enCamino: 0, ultimo: null, vistos: new Set() };
     const g = m[k];
-    g.pedidos++;
     g.invertido += (p.costoUnitario || 0) * p.cantidad;
-    if (p.estado === 'recibido' && p.fechaLlegada) g.tiempos.push(diasEntre(p.fechaPedido, p.fechaLlegada));
-    else g.enCamino++;
+    // Las líneas de un mismo pedido (ordenId) cuentan como una sola entrega.
+    const orden = p.ordenId || p.id;
+    if (!g.vistos.has(orden)) {
+      g.vistos.add(orden);
+      g.pedidos++;
+      if (p.estado === 'recibido' && p.fechaLlegada) g.tiempos.push(diasEntre(p.fechaPedido, p.fechaLlegada));
+      else g.enCamino++;
+    }
     if (!g.ultimo || p.fechaPedido > g.ultimo) g.ultimo = p.fechaPedido;
   });
-  return Object.values(m).map(g => ({
+  return Object.values(m).map(({ vistos, ...g }) => ({
     ...g,
     recibidos: g.tiempos.length,
     promedio:  g.tiempos.length ? Math.round(g.tiempos.reduce((a, b) => a + b, 0) / g.tiempos.length * 10) / 10 : null,
