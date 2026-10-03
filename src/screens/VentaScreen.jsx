@@ -13,6 +13,19 @@ const stepBtn = {
   fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center',
 };
 
+// Reparte el precio total de un pack entre sus líneas en proporción a su precio de lista.
+function repartirPack(lineas, totalPack) {
+  const base = lineas.reduce((n, l) => n + l.price * l.qty, 0);
+  let resto = totalPack;
+  return lineas.map((l, i) => {
+    const t = i === lineas.length - 1
+      ? resto
+      : Math.round(base > 0 ? (totalPack * l.price * l.qty) / base : totalPack / lineas.length);
+    resto -= t;
+    return t;
+  });
+}
+
 export default function VentaScreen({ go }) {
   const { productos, ventas, registrarVenta, cancelarVenta, registrarMovimiento } = useApp();
   const disponibles = productos.filter(p => p.stock > 0);
@@ -23,6 +36,8 @@ export default function VentaScreen({ go }) {
   const [client, setClient]       = useState('');
   const [method, setMethod]       = useState('Transferencia');
   const [openPicker, setOpenPicker] = useState(false);
+  const [lineas, setLineas]       = useState([]);   // productos ya agregados al pack
+  const [packTotal, setPackTotal] = useState(null); // null = suma de precios de lista
   const [sent, setSent]           = useState(false);
   const [sending, setSending]     = useState(false);
 
@@ -50,35 +65,70 @@ export default function VentaScreen({ go }) {
     );
   }
 
-  const maxQty   = product.stock;
-  const total    = price * qty;
-  const margen   = total - (product.cost * qty);
+  const esPack   = lineas.length > 0;
+  const todas    = [...lineas, { productId, qty, price }];
+  const prodDe   = (id) => productos.find(p => p.id === id);
+  const usadoDe  = (id) => todas.filter(l => l.productId === id).reduce((n, l) => n + l.qty, 0);
+  // Cuánto se puede agregar de ESTE producto, descontando lo que ya está en el pack.
+  const maxQty   = product.stock - lineas.filter(l => l.productId === productId).reduce((n, l) => n + l.qty, 0);
+  const sinStock = todas.some(l => usadoDe(l.productId) > (prodDe(l.productId)?.stock ?? 0));
+  const refTotal = todas.reduce((n, l) => n + l.price * l.qty, 0);
+  const total    = esPack ? (packTotal ?? refTotal) : price * qty;
+  const reparto  = esPack ? repartirPack(todas, total) : [total];
+  const margen   = todas.reduce((n, l, i) => n + reparto[i] - (prodDe(l.productId)?.cost ?? 0) * l.qty, 0);
   const margenPct = total > 0 ? (margen / total) * 100 : 0;
+  const invalido = sinStock || total <= 0 || todas.some(l => l.price <= 0);
+
+  const agregarOtro = () => {
+    const sig = disponibles.find(p => p.id !== productId) || product;
+    setLineas(ls => [...ls, { productId, qty, price }]);
+    setProductId(sig.id);
+    setPrice(sig.price);
+    setQty(1);
+  };
+
+  const quitarLinea = (idx) => {
+    setLineas(ls => {
+      const nl = ls.filter((_, i) => i !== idx);
+      if (nl.length === 0) setPackTotal(null);
+      return nl;
+    });
+  };
 
   const handleSend = async () => {
-    if (sending || qty > maxQty) return;
+    if (sending || invalido) return;
     setSending(true);
-    const venta = {
-      productoId:     productId,
-      producto:       product.name,
-      cantidad:       qty,
-      precioUnitario: price,
-      costoUnitario:  product.cost,
-      total,
-      margen,
-      cliente:        client || null,
-      metodoPago:     method,
-    };
-    registrarVenta(venta);
-    registrarMovimiento({
-      productoId:   productId,
-      producto:     product.name,
-      tipo:         'venta',
-      delta:        -qty,
-      stockAntes:   product.stock,
-      stockDespues: Math.max(0, product.stock - qty),
-    });
-    await sendVenta(venta);
+    const packId = esPack ? 'pack-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5) : undefined;
+    const stockCorriente = {};
+    for (let i = 0; i < todas.length; i++) {
+      const l = todas[i];
+      const pr = prodDe(l.productId);
+      const t  = reparto[i];
+      const venta = {
+        productoId:     l.productId,
+        producto:       pr.name,
+        cantidad:       l.qty,
+        precioUnitario: Math.round(t / l.qty),
+        costoUnitario:  pr.cost,
+        total:          t,
+        margen:         t - pr.cost * l.qty,
+        cliente:        client || null,
+        metodoPago:     method,
+        ...(packId ? { packId } : {}),
+      };
+      const antes = stockCorriente[l.productId] ?? pr.stock;
+      stockCorriente[l.productId] = Math.max(0, antes - l.qty);
+      registrarVenta(venta);
+      registrarMovimiento({
+        productoId:   l.productId,
+        producto:     pr.name,
+        tipo:         'venta',
+        delta:        -l.qty,
+        stockAntes:   antes,
+        stockDespues: stockCorriente[l.productId],
+      });
+      await sendVenta(venta);
+    }
     setSent(true);
     setSending(false);
     setTimeout(() => { go('home'); }, 1400);
@@ -153,7 +203,7 @@ export default function VentaScreen({ go }) {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
             <button onClick={() => setQty(q => Math.max(1, q - 1))} style={stepBtn}>−</button>
             <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: qty > maxQty ? MACACO.danger : '#fff' }}>{qty}</div>
-            <button onClick={() => setQty(q => Math.min(maxQty, q + 1))} style={stepBtn}>+</button>
+            <button onClick={() => setQty(q => Math.min(Math.max(1, maxQty), q + 1))} style={stepBtn}>+</button>
           </div>
           <div style={{ fontSize: 10, color: MACACO.textMuted, textAlign: 'center', marginTop: 6 }}>
             máx {maxQty}
@@ -161,7 +211,7 @@ export default function VentaScreen({ go }) {
         </Card>
         <Card padding={14}>
           <div style={{ fontSize: 10.5, color: MACACO.textDim, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-            Precio unitario
+            {esPack ? 'Precio de lista' : 'Precio unitario'}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', marginTop: 10 }}>
             <span style={{ fontSize: 18, color: MACACO.textMuted, fontWeight: 600, marginRight: 2 }}>$</span>
@@ -178,6 +228,76 @@ export default function VentaScreen({ go }) {
           </div>
         </Card>
       </div>
+
+      <button onClick={agregarOtro} disabled={disponibles.length === 0} style={{
+        width: '100%', padding: '12px', marginBottom: 14,
+        background: 'rgba(245,197,24,0.08)', color: MACACO.primary,
+        border: `1px dashed rgba(245,197,24,0.4)`, borderRadius: 12,
+        fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+      }}>
+        <Icon.plus size={13} /> AGREGAR OTRO PRODUCTO (PACK)
+      </button>
+
+      {esPack && (
+        <>
+          <SectionTitle>Pack · {todas.length} productos</SectionTitle>
+          <Card padding={0} style={{ marginBottom: 14 }}>
+            {todas.map((l, i) => {
+              const pr = prodDe(l.productId);
+              const esActual = i === todas.length - 1;
+              return (
+                <div key={i} style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px',
+                  borderBottom: i === todas.length - 1 ? 'none' : `1px solid ${MACACO.borderSoft}`,
+                }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {pr?.name}{esActual ? ' (editando)' : ''}
+                    </div>
+                    <div style={{ fontSize: 11, color: MACACO.textMuted, marginTop: 1 }}>
+                      ×{l.qty} · lista {clp(l.price)}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{clp(reparto[i])}</div>
+                    <div style={{ fontSize: 10, color: MACACO.textMuted, marginTop: 1 }}>en el pack</div>
+                  </div>
+                  {!esActual && (
+                    <button onClick={() => quitarLinea(i)} aria-label="Quitar" style={{
+                      width: 28, height: 28, borderRadius: 8, flexShrink: 0,
+                      background: 'transparent', border: `1px solid ${MACACO.border}`,
+                      color: MACACO.textMuted, fontSize: 16, cursor: 'pointer', fontFamily: 'inherit',
+                    }}>×</button>
+                  )}
+                </div>
+              );
+            })}
+          </Card>
+
+          <Card padding={14} style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 10.5, color: MACACO.textDim, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+              Precio total del pack
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', marginTop: 10 }}>
+              <span style={{ fontSize: 18, color: MACACO.textMuted, fontWeight: 600, marginRight: 2 }}>$</span>
+              <input
+                type="text" inputMode="numeric"
+                value={total.toLocaleString('es-CL')}
+                onChange={(e) => setPackTotal(parseInt(e.target.value.replace(/\D/g, ''), 10) || 0)}
+                style={{
+                  background: 'transparent', border: 'none', color: '#fff',
+                  fontSize: 20, fontWeight: 700, width: '100%', outline: 'none',
+                  fontVariantNumeric: 'tabular-nums', padding: 0, fontFamily: 'inherit',
+                }}
+              />
+            </div>
+            <div style={{ fontSize: 11, color: MACACO.textMuted, marginTop: 8, lineHeight: 1.4 }}>
+              Lo que cobraste por todo junto. Se reparte entre los productos según su precio de lista y se registra como una sola venta.
+            </div>
+          </Card>
+        </>
+      )}
 
       <SectionTitle>Cliente <span style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 400, color: MACACO.textMuted }}>(opcional)</span></SectionTitle>
       <Card style={{ marginBottom: 14 }} padding={0}>
@@ -218,7 +338,7 @@ export default function VentaScreen({ go }) {
         borderColor: 'rgba(245,197,24,0.25)',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <div style={{ fontSize: 12, color: MACACO.textDim, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Total venta</div>
+          <div style={{ fontSize: 12, color: MACACO.textDim, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{esPack ? 'Total pack' : 'Total venta'}</div>
           <div style={{ fontSize: 26, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{clp(total)}</div>
         </div>
         <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '12px 0' }} />
@@ -231,26 +351,26 @@ export default function VentaScreen({ go }) {
         </div>
       </Card>
 
-      {qty > maxQty && (
+      {sinStock && (
         <div style={{
           marginBottom: 10, padding: '10px 14px', borderRadius: 10,
           background: 'rgba(255,77,77,0.08)', border: '1px solid rgba(255,77,77,0.3)',
           fontSize: 12, color: MACACO.danger, fontWeight: 600,
         }}>
-          Stock insuficiente — solo hay {maxQty} unidad{maxQty !== 1 ? 'es' : ''}
+          Stock insuficiente — revisa las cantidades del pack
         </div>
       )}
 
       <button
         onClick={handleSend}
-        disabled={sent || sending || qty > maxQty || price === 0}
+        disabled={sent || sending || invalido}
         style={{
           width: '100%', padding: '16px',
-          background: sent ? MACACO.success : (qty > maxQty || price === 0) ? MACACO.cardElev : MACACO.primary,
-          color: (qty > maxQty || price === 0) ? MACACO.textMuted : '#0A0A0F',
+          background: sent ? MACACO.success : invalido ? MACACO.cardElev : MACACO.primary,
+          color: invalido ? MACACO.textMuted : '#0A0A0F',
           border: 'none', borderRadius: 12,
           fontSize: 14, fontWeight: 700, letterSpacing: '0.04em',
-          cursor: sent || sending || qty > maxQty || price === 0 ? 'default' : 'pointer',
+          cursor: sent || sending || invalido ? 'default' : 'pointer',
           fontFamily: 'inherit',
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           boxShadow: `0 0 24px ${(sent ? MACACO.success : MACACO.primary)}55`,
@@ -259,7 +379,7 @@ export default function VentaScreen({ go }) {
       >
         {sent ? <><Icon.check size={16} /> VENTA REGISTRADA</>
           : sending ? 'ENVIANDO...'
-          : <>REGISTRAR VENTA <Icon.arrowRight size={14} /></>}
+          : <>{esPack ? 'REGISTRAR PACK' : 'REGISTRAR VENTA'} <Icon.arrowRight size={14} /></>}
       </button>
       <div style={{
         marginTop: 10, textAlign: 'center', fontSize: 11.5,
@@ -276,7 +396,22 @@ export default function VentaScreen({ go }) {
 
 function UltimasVentas({ ventas, onCancelar }) {
   const [confirmId, setConfirmId] = useState(null);
-  const recientes = ventas.slice(0, 5);
+  // Las líneas de un pack se muestran juntas como una sola venta.
+  const grupos = [];
+  const porPack = {};
+  ventas.forEach(v => {
+    if (v.packId && porPack[v.packId]) { porPack[v.packId].lineas.push(v); return; }
+    const g = { ...v, lineas: [v] };
+    if (v.packId) porPack[v.packId] = g;
+    grupos.push(g);
+  });
+  const recientes = grupos.slice(0, 5).map(g => g.lineas.length > 1 ? {
+    ...g,
+    producto: g.lineas.map(l => `${l.producto} ×${l.cantidad}`).join(' + '),
+    cantidad: g.lineas.reduce((n, l) => n + l.cantidad, 0),
+    total:    g.lineas.reduce((n, l) => n + l.total, 0),
+    esPack: true,
+  } : g);
   if (recientes.length === 0) return null;
 
   return (
@@ -298,7 +433,7 @@ function UltimasVentas({ ventas, onCancelar }) {
                   {v.producto}
                 </div>
                 <div style={{ fontSize: 11, color: MACACO.textMuted, marginTop: 1 }}>
-                  ×{v.cantidad} · {esHoy ? fecha : dia}
+                  {v.esPack ? 'Pack' : `×${v.cantidad}`} · {esHoy ? fecha : dia}
                   {v.cliente ? ` · ${v.cliente}` : ''}
                 </div>
               </div>

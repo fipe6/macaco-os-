@@ -291,7 +291,7 @@ export function AppProvider({ children }) {
   // ── Acciones — cada una persiste explícitamente a Supabase ────────────────
 
   const registrarVenta = useCallback((venta) => {
-    const nueva = { ...venta, id: Date.now().toString(), fecha: new Date().toISOString() };
+    const nueva = { ...venta, id: Date.now().toString() + Math.random().toString(36).slice(2, 6), fecha: new Date().toISOString() };
 
     setVentas(prev => {
       const v = [nueva, ...prev];
@@ -319,21 +319,24 @@ export function AppProvider({ children }) {
     setVentas(prev => {
       const venta = prev.find(v => v.id === ventaId);
       if (!venta) return prev;
-      const v = prev.filter(v => v.id !== ventaId);
+      // Un pack se anula completo: todas sus líneas comparten packId.
+      const anuladas = venta.packId ? prev.filter(v => v.packId === venta.packId) : [venta];
+      const v = prev.filter(x => !anuladas.includes(x));
       pushDB(LS.ventas, v);
 
       setProductos(ps => {
-        const p = ps.map(p => {
-          if (p.id !== venta.productoId) return p;
-          const s = p.stock + venta.cantidad;
-          return { ...p, stock: s, status: calcStatus(s, refs.current.config.alertaStockBajo) };
+        const p = ps.map(prod => {
+          const devuelto = anuladas.filter(a => a.productoId === prod.id).reduce((n, a) => n + a.cantidad, 0);
+          if (!devuelto) return prod;
+          const st = prod.stock + devuelto;
+          return { ...prod, stock: st, status: calcStatus(st, refs.current.config.alertaStockBajo) };
         });
         pushDB(LS.productos, p);
-        pushInv(p.filter(prod => prod.id === venta.productoId));
+        pushInv(p.filter(prod => anuladas.some(a => a.productoId === prod.id)));
         return p;
       });
       setCaja(c => {
-        const nc = Math.max(0, c - venta.total);
+        const nc = Math.max(0, c - anuladas.reduce((n, a) => n + a.total, 0));
         pushDB(LS.caja, nc);
         return nc;
       });
@@ -421,7 +424,7 @@ export function AppProvider({ children }) {
 
   const registrarMovimiento = useCallback((mov) => {
     setMovimientos(prev => {
-      const m = [{ ...mov, id: Date.now().toString(), fecha: mov.fecha || new Date().toISOString() }, ...prev];
+      const m = [{ ...mov, id: Date.now().toString() + Math.random().toString(36).slice(2, 6), fecha: mov.fecha || new Date().toISOString() }, ...prev];
       pushDB(LS.movimientos, m);
       return m;
     });
@@ -672,6 +675,36 @@ export function ventasUltimos7Dias(ventas) {
 }
 export function sumarTotal(lista)  { return lista.reduce((s, v) => s + v.total,  0); }
 export function sumarMargen(lista) { return lista.reduce((s, v) => s + v.margen, 0); }
+// Un pack son varias líneas con el mismo packId: cuenta como una sola transacción.
+export function contarTransacciones(lista) { return new Set(lista.map(v => v.packId || v.id)).size; }
+
+// Meses ('YYYY-MM') con ventas o gastos, del más reciente al más antiguo. Siempre incluye el actual.
+export function mesesConDatos(ventas, gastos = []) {
+  const keys = new Set([mesKey(new Date())]);
+  ventas.forEach(v => keys.add(mesKey(new Date(v.fecha))));
+  gastos.forEach(g => keys.add(mesKey(new Date(g.fecha))));
+  return [...keys].sort().reverse();
+}
+
+// Resumen de un mes: ventas, COGS, gastos de negocio y resultado neto.
+export function resumenMes(ventas, gastos, fecha) {
+  const vMes   = ventasDelMes(ventas, fecha);
+  const total  = sumarTotal(vMes);
+  const cogs   = vMes.reduce((n, v) => n + v.costoUnitario * v.cantidad, 0);
+  const gNeg   = gastosDelMes(gastos, fecha).filter(g => g.tipo === 'negocio').reduce((n, g) => n + g.monto, 0);
+  return { total, margen: sumarMargen(vMes), cogs, gastos: gNeg, neto: total - cogs - gNeg, transacciones: contarTransacciones(vMes) };
+}
+
+// Ventas por producto en una lista de ventas, con unidades, total y margen.
+export function ventasPorProducto(lista) {
+  const m = {};
+  lista.forEach(v => {
+    const k = v.productoId || v.producto;
+    if (!m[k]) m[k] = { id: v.productoId, nombre: v.producto, unidades: 0, total: 0, margen: 0 };
+    m[k].unidades += v.cantidad; m[k].total += v.total; m[k].margen += v.margen;
+  });
+  return Object.values(m).sort((a, b) => b.total - a.total);
+}
 
 export function getDiasDelMes(ventas, fecha = new Date()) {
   const año = fecha.getFullYear(), mes = fecha.getMonth();

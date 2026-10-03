@@ -8,6 +8,7 @@ import {
   ventasDelDia, ventasDelMes, ventasUltimos7Dias,
   sumarTotal, sumarMargen, getDiasGraficoSemanal, getTopProductos,
   calcMetricasInventario, getResumenClientes, gastosDelMes, sumarGastos, MESES,
+  contarTransacciones, mesesConDatos, resumenMes, ventasPorProducto, mesKey, mesLabel,
 } from '../store.jsx';
 
 const TABS = ['Diario', 'Semanal', 'Mensual', 'Clientes'];
@@ -91,7 +92,8 @@ function ReporteDiario({ ventas, config }) {
   const total = sumarTotal(vHoy);
   const margen = sumarMargen(vHoy);
   const top   = getTopProductos(vHoy, 1)[0];
-  const aov   = vHoy.length > 0 ? total / vHoy.length : 0;
+  const nTx   = contarTransacciones(vHoy);
+  const aov   = nTx > 0 ? total / nTx : 0;
 
   const ayer    = new Date(); ayer.setDate(ayer.getDate() - 1);
   const vAyer   = ventasDelDia(ventas, ayer);
@@ -109,7 +111,7 @@ function ReporteDiario({ ventas, config }) {
         {totAyer > 0 && <div style={{ fontSize: 11.5, color: MACACO.textMuted, marginTop: 4 }}>vs ayer ({clp(totAyer)})</div>}
       </Card>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
-        <KpiTile label="Transacciones"  value={String(vHoy.length)} />
+        <KpiTile label="Transacciones"  value={String(nTx)} />
         <KpiTile label="Ticket promedio" value={aov > 0 ? clp(Math.round(aov)) : '—'} />
       </div>
       {total > 0 && (
@@ -187,11 +189,18 @@ function ReporteSemanal({ ventas, config }) {
 // ─── Mensual ──────────────────────────────────────────────────────────────────
 
 function ReporteMensual({ ventas, movimientos, productos, config, gastos }) {
-  const hoy    = new Date();
-  const vMes   = ventasDelMes(ventas);
+  const ahora  = new Date();
+  const [sel, setSel]       = useState(mesKey(ahora));
+  const [abierto, setAbierto] = useState(false);
+  const esActual = sel === mesKey(ahora);
+  const [selA, selM] = sel.split('-').map(Number);
+  const hoy    = esActual ? ahora : new Date(selA, selM - 1, 15);
+  const meses  = mesesConDatos(ventas, gastos);
+  const vMes   = ventasDelMes(ventas, hoy);
   const total  = sumarTotal(vMes);
   const margen = sumarMargen(vMes);
-  const aov    = vMes.length > 0 ? total / vMes.length : 0;
+  const nTx    = contarTransacciones(vMes);
+  const aov    = nTx > 0 ? total / nTx : 0;
   const pct    = config.metaMensual > 0 ? (total / config.metaMensual) * 100 : 0;
   const top3   = getTopProductos(vMes, 3);
 
@@ -212,8 +221,16 @@ function ReporteMensual({ ventas, movimientos, productos, config, gastos }) {
 
   return (
     <>
-      <Card style={{ marginBottom: 12 }} padding={18}>
-        <div style={{ fontSize: 11, color: MACACO.textDim, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase' }}>{MESES[hoy.getMonth()]} {hoy.getFullYear()}</div>
+      <Card style={{ marginBottom: abierto ? 8 : 12 }} padding={18} onClick={() => setAbierto(a => !a)}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: 11, color: MACACO.textDim, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase' }}>{MESES[hoy.getMonth()]} {hoy.getFullYear()}</div>
+          <div style={{ fontSize: 10.5, color: MACACO.primary, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+            {meses.length > 1 ? `${meses.length} meses` : 'Historial'}
+            <svg width="12" height="12" viewBox="0 0 14 14" style={{ transform: abierto ? 'rotate(180deg)' : 'none', transition: '200ms' }}>
+              <path d="M3 5l4 4 4-4" stroke={MACACO.primary} strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+        </div>
         <div style={{ fontSize: 32, fontWeight: 800, marginTop: 6, fontVariantNumeric: 'tabular-nums' }}>{clp(total)}</div>
         <div style={{ fontSize: 12, color: MACACO.textMuted, marginTop: 4 }}>de {clp(config.metaMensual)} meta</div>
         <div style={{ marginTop: 14 }}>
@@ -222,11 +239,38 @@ function ReporteMensual({ ventas, movimientos, productos, config, gastos }) {
         </div>
       </Card>
 
+      {abierto && (
+        <Card padding={0} style={{ marginBottom: 12 }}>
+          {meses.map((k, i) => {
+            const [a, m] = k.split('-').map(Number);
+            const r = resumenMes(ventas, gastos, new Date(a, m - 1, 15));
+            const activo = k === sel;
+            const pctMes = config.metaMensual > 0 ? (r.total / config.metaMensual) * 100 : 0;
+            return (
+              <div key={k} onClick={(e) => { e.stopPropagation(); setSel(k); setAbierto(false); }} style={{
+                padding: '12px 14px', cursor: 'pointer',
+                background: activo ? 'rgba(245,197,24,0.07)' : 'transparent',
+                borderBottom: i === meses.length - 1 ? 'none' : `1px solid ${MACACO.borderSoft}`,
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: activo ? MACACO.primary : '#fff' }}>{mesLabel(k)}</div>
+                  <div style={{ fontSize: 14, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{clp(r.total)}</div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 11, color: MACACO.textMuted }}>
+                  <span>{r.transacciones} venta{r.transacciones !== 1 ? 's' : ''} · gastos {clp(r.gastos)} · {pctMes.toFixed(0)}% meta</span>
+                  <span style={{ fontWeight: 700, color: r.neto >= 0 ? MACACO.success : MACACO.danger }}>neto {clp(r.neto)}</span>
+                </div>
+              </div>
+            );
+          })}
+        </Card>
+      )}
+
       <SectionTitle>KPIs financieros</SectionTitle>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
         <KpiTile label="Margen bruto"   value={margenPct > 0 ? margenPct.toFixed(0) + '%' : '—'} color={MACACO.success} />
         <KpiTile label="Ticket prom."   value={aov > 0 ? clpCompact(Math.round(aov)) : '—'} />
-        <KpiTile label="Transacciones"  value={String(vMes.length)} color={MACACO.cyan} />
+        <KpiTile label="Transacciones"  value={String(nTx)} color={MACACO.cyan} />
         <KpiTile label="COGS del mes"   value={cogsMes > 0 ? clpCompact(cogsMes) : '—'} color={MACACO.danger} />
       </div>
 
@@ -340,8 +384,66 @@ function ReporteMensual({ ventas, movimientos, productos, config, gastos }) {
         />
       </div>
 
-      {top3.length > 0 && <TopProductosList items={top3} titulo="Top productos del mes" />}
+      <ProductosDelMes vMes={vMes} productos={productos} fecha={hoy} esActual={esActual} />
       {vMes.length === 0 && <EmptyState texto="Sin ventas registradas este mes" />}
+    </>
+  );
+}
+
+// Ventas por producto del mes + rotación (días que dura el stock actual al ritmo del mes).
+function ProductosDelMes({ vMes, productos, fecha, esActual }) {
+  const filas = ventasPorProducto(vMes);
+  const dias  = esActual ? fecha.getDate() : new Date(fecha.getFullYear(), fecha.getMonth() + 1, 0).getDate();
+  const vendidos = new Set(filas.map(f => f.id));
+  const sinMov = esActual ? productos.filter(p => p.stock > 0 && !vendidos.has(p.id)) : [];
+  if (filas.length === 0 && sinMov.length === 0) return null;
+
+  const stockDe = (id) => productos.find(p => p.id === id)?.stock;
+  const cobertura = (f) => {
+    const stock = stockDe(f.id);
+    if (!esActual || stock === undefined) return null;
+    if (stock <= 0) return 0;
+    const ritmo = f.unidades / dias;
+    return ritmo > 0 ? Math.round(stock / ritmo) : null;
+  };
+
+  return (
+    <>
+      <SectionTitle>Ventas por producto</SectionTitle>
+      <Card padding={0} style={{ marginBottom: 12 }}>
+        {filas.map((f, i) => {
+          const dd = cobertura(f);
+          const color = dd === null ? MACACO.textMuted : dd <= 7 ? MACACO.danger : dd <= 21 ? MACACO.primary : MACACO.success;
+          return (
+            <div key={f.id || f.nombre} style={{
+              padding: '12px 14px',
+              borderBottom: i === filas.length - 1 && sinMov.length === 0 ? 'none' : `1px solid ${MACACO.borderSoft}`,
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, minWidth: 0 }}>{f.nombre}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{clp(f.total)}</div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3, fontSize: 11, color: MACACO.textMuted }}>
+                <span>{f.unidades} u · margen {clp(f.margen)}</span>
+                {esActual && (
+                  <span style={{ color, fontWeight: 600 }}>
+                    {dd === null ? 'sin rotación' : dd === 0 ? 'agotado' : `${dd} días de stock`}
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+        {sinMov.map((p, i) => (
+          <div key={p.id} style={{
+            padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+            borderBottom: i === sinMov.length - 1 ? 'none' : `1px solid ${MACACO.borderSoft}`,
+          }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: MACACO.textDim }}>{p.name}</div>
+            <div style={{ fontSize: 11, color: MACACO.textMuted }}>{p.stock} u · sin ventas este mes</div>
+          </div>
+        ))}
+      </Card>
     </>
   );
 }
