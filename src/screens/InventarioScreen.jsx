@@ -15,7 +15,7 @@ const stepBtn = {
 };
 
 export default function InventarioScreen() {
-  const { productos, agregarProducto, moverStock, registrarMovimiento, editarProducto } = useApp();
+  const { productos, caja, agregarProducto, moverStock, registrarMovimiento, editarProducto, registrarCompra } = useApp();
   const [vista, setVista]       = useState('stock'); // stock | pedidos
   const [q, setQ]               = useState('');
   const [showAdd, setShowAdd]   = useState(false);
@@ -53,13 +53,14 @@ export default function InventarioScreen() {
     }
   };
 
-  const handleMoverStock = async (id, delta, tipo) => {
+  const handleMoverStock = async (id, delta, tipo, montoCaja = 0) => {
     const producto = productos.find(p => p.id === id);
     if (!producto) return;
     const stockAntes   = producto.stock;
     const stockDespues = Math.max(0, stockAntes + delta);
     moverStock(id, delta);
     registrarMovimiento({ productoId: id, producto: producto.name, tipo, delta: stockDespues - stockAntes, stockAntes, stockDespues });
+    if (montoCaja > 0) registrarCompra({ monto: montoCaja, descripcion: `${producto.name} ×${delta}` });
     await sendStockUpdate({ ...producto, stock: stockDespues });
     setStockSheet(null);
   };
@@ -243,7 +244,8 @@ export default function InventarioScreen() {
         <StockMoveSheet
           producto={stockSheet}
           onClose={() => setStockSheet(null)}
-          onMove={(delta, tipo) => handleMoverStock(stockSheet.id, delta, tipo)}
+          caja={caja}
+          onMove={(delta, tipo, montoCaja) => handleMoverStock(stockSheet.id, delta, tipo, montoCaja)}
         />
       )}
       {editSheet && (
@@ -293,8 +295,9 @@ function SheetBase({ onClose, children }) {
   );
 }
 
-function StockMoveSheet({ producto, onClose, onMove }) {
+function StockMoveSheet({ producto, caja, onClose, onMove }) {
   const [delta, setDelta] = useState(1);
+  const [descontar, setDescontar] = useState(true);
   const [tipo, setTipo]   = useState('compra'); // compra | baja | auspicio
 
   const signo   = tipo === 'compra' ? +1 : -1;
@@ -383,8 +386,32 @@ function StockMoveSheet({ producto, onClose, onMove }) {
         </div>
       </div>
 
+      {tipo === 'compra' && producto.cost > 0 && (
+        <div
+          onClick={() => setDescontar(d => !d)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', marginBottom: 14,
+            borderRadius: 12, cursor: 'pointer',
+            background: descontar ? 'rgba(245,197,24,0.07)' : MACACO.card,
+            border: `1px solid ${descontar ? 'rgba(245,197,24,0.35)' : MACACO.border}`,
+          }}
+        >
+          <div style={{
+            width: 22, height: 22, borderRadius: 6, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: descontar ? MACACO.primary : 'transparent', border: `1px solid ${descontar ? MACACO.primary : MACACO.border}`,
+            color: '#0A0A0F', fontSize: 14, fontWeight: 800,
+          }}>{descontar ? '✓' : ''}</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 700 }}>Descontar {clp(producto.cost * delta)} de la caja</div>
+            <div style={{ fontSize: 11, color: MACACO.textMuted, marginTop: 2 }}>
+              Costo {clp(producto.cost)} × {delta} · caja actual {clp(caja)}
+            </div>
+          </div>
+        </div>
+      )}
+
       <button
-        onClick={() => onMove(signo * delta, tipo)}
+        onClick={() => onMove(signo * delta, tipo, tipo === 'compra' && descontar ? producto.cost * delta : 0)}
         style={{
           width: '100%', padding: '15px',
           background: colorMap[tipo], color: '#0A0A0F',

@@ -4,12 +4,12 @@ import { Card, SectionTitle, Progress, Dot, Icon } from '../components/ui.jsx';
 import { Screen } from '../components/Screen.jsx';
 import { sendDeudaUpdate } from '../services/webhook.js';
 import { useApp } from '../store.jsx';
-import { gastosDelMes, sumarGastos, MESES } from '../store.jsx';
+import { gastosDelMes, sumarGastos, MESES, ventasDelMes, sumarTotal } from '../store.jsx';
 
 const ALERTA_GASTOS_NEGOCIO = 273_000;
 
 export default function FinanzasScreen({ go }) {
-  const { deudas, caja, config, gastos, pagarDeuda, ajustarCaja, agregarDeuda, editarDeuda, eliminarDeuda } = useApp();
+  const { deudas, caja, config, gastos, ventas, pagarDeuda, ajustarCaja, agregarDeuda, editarDeuda, eliminarDeuda } = useApp();
   const [pagoSheet, setPagoSheet]   = useState(null);
   const [ajusteCaja, setAjusteCaja] = useState(false);
   const [deudaSheet, setDeudaSheet] = useState(null); // null | 'new' | deuda
@@ -18,18 +18,22 @@ export default function FinanzasScreen({ go }) {
   const totalDebt       = deudas.reduce((s, d) => s + d.amt, 0);
   const deudaConInteres = deudas.filter(d => d.rate > 0);
   const interesTotal    = deudaConInteres.reduce((s, d) => s + d.amt * d.rate / 100, 0);
-  const pctCaja         = Math.min(100, (caja / 800_000) * 100);
+  const pctCaja         = Math.max(0, Math.min(100, (caja / 800_000) * 100));
   const cajaSalud       = caja >= 600_000 ? 'Saludable' : caja >= config.colchonMinimo ? 'OK' : 'Crítica';
   const cajaSaludColor  = caja >= 600_000 ? MACACO.success : caja >= config.colchonMinimo ? MACACO.primary : MACACO.danger;
 
   // Gastos del mes actual y anterior
   const hoy             = new Date();
   const fechaAnt        = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
-  const gMes            = gastosDelMes(gastos, hoy).filter(g => g.tipo === 'negocio');
+  const gMes            = gastosDelMes(gastos, hoy);
   const gMesAnt         = gastosDelMes(gastos, fechaAnt);
   const totalNegocio    = sumarGastos(gMes.filter(g => g.tipo === 'negocio'));
-  const totalGastosMes  = totalNegocio;
+  const totalInventario = sumarGastos(gMes.filter(g => g.tipo === 'inventario'));
+  const totalGastosMes  = totalNegocio + totalInventario;
+  const ventasMes       = sumarTotal(ventasDelMes(ventas, hoy));
+  const flujoMes        = ventasMes - totalGastosMes;
   const totalNegocioAnt = sumarGastos(gMesAnt.filter(g => g.tipo === 'negocio'));
+  const totalInventarioAnt = sumarGastos(gMesAnt.filter(g => g.tipo === 'inventario'));
   const mesNombre       = MESES[hoy.getMonth()];
 
   const handlePago = async (id, monto) => {
@@ -104,6 +108,33 @@ export default function FinanzasScreen({ go }) {
           <span>Crítico $0</span>
           <span style={{ color: MACACO.danger }}>Mín {clp(config.colchonMinimo)}</span>
           <span>Cómodo $800k</span>
+        </div>
+      </Card>
+
+      {/* Flujo de caja del mes: para comprobar que la caja cuadra */}
+      <Card style={{ marginBottom: 18 }} padding={16}>
+        <div style={{ fontSize: 11, color: MACACO.textDim, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 10 }}>
+          Flujo de caja · {mesNombre}
+        </div>
+        {[
+          { label: 'Ventas cobradas',     val: ventasMes,       color: MACACO.success, signo: '+' },
+          { label: 'Gastos del negocio',  val: totalNegocio,    color: MACACO.orange,  signo: '−' },
+          { label: 'Compras de inventario', val: totalInventario, color: MACACO.cyan,  signo: '−' },
+        ].map(r => (
+          <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
+            <span style={{ color: MACACO.textDim }}>{r.label}</span>
+            <span style={{ fontWeight: 700, color: r.color, fontVariantNumeric: 'tabular-nums' }}>{r.signo}{clp(r.val)}</span>
+          </div>
+        ))}
+        <div style={{ height: 1, background: 'rgba(255,255,255,0.1)', margin: '8px 0' }} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+          <span style={{ fontWeight: 700 }}>Variación de caja</span>
+          <span style={{ fontWeight: 800, color: flujoMes >= 0 ? MACACO.success : MACACO.danger, fontVariantNumeric: 'tabular-nums' }}>
+            {flujoMes >= 0 ? '+' : '−'}{clp(Math.abs(flujoMes))}
+          </span>
+        </div>
+        <div style={{ fontSize: 10.5, color: MACACO.textMuted, marginTop: 8, lineHeight: 1.45 }}>
+          No incluye pagos de deudas ni ajustes manuales de caja. Las compras de inventario no restan en el resultado del mes porque su costo ya entra al vender.
         </div>
       </Card>
 
@@ -205,12 +236,18 @@ export default function FinanzasScreen({ go }) {
         </Card>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10, marginBottom: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
         <GastoTile
           label="Negocio"
           monto={totalNegocio}
           montoAnt={totalNegocioAnt}
           color={MACACO.orange}
+        />
+        <GastoTile
+          label="Inventario"
+          monto={totalInventario}
+          montoAnt={totalInventarioAnt}
+          color={MACACO.cyan}
         />
       </div>
 

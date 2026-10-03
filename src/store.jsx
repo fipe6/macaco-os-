@@ -342,7 +342,7 @@ export function AppProvider({ children }) {
         return p;
       });
       setCaja(c => {
-        const nc = Math.max(0, c - anuladas.reduce((n, a) => n + a.total, 0));
+        const nc = c - anuladas.reduce((n, a) => n + a.total, 0);
         pushDB(LS.caja, nc);
         return nc;
       });
@@ -445,7 +445,7 @@ export function AppProvider({ children }) {
     });
     if (gasto.tipo === 'negocio') {
       setCaja(prev => {
-        const c = Math.max(0, prev - gasto.monto);
+        const c = prev - gasto.monto;
         pushDB(LS.caja, c);
         return c;
       });
@@ -689,10 +689,73 @@ export function AppProvider({ children }) {
     });
   }, [actualizarPedido, moverStock, registrarMovimiento]);
 
+  // ── Compras de inventario: salen de la caja y quedan registradas como gasto tipo 'inventario'.
+  // No cuentan como "gasto de negocio" en el resultado: su costo ya entra como COGS al vender.
+  const registrarCompra = useCallback(({ monto, descripcion, proveedor, ordenId }) => {
+    const id = Date.now().toString() + Math.random().toString(36).slice(2, 6);
+    const nuevo = {
+      id, categoria: 'Compra inventario', categoriaId: 'compra-inventario', tipo: 'inventario',
+      monto, descripcion: descripcion || null, proveedor: proveedor || null, ordenId: ordenId || null,
+      fecha: new Date().toISOString(),
+    };
+    setGastos(prev => {
+      const g = [nuevo, ...prev];
+      pushDB(LS.gastos, g);
+      return g;
+    });
+    setCaja(prev => {
+      const c = prev - monto;
+      pushDB(LS.caja, c);
+      return c;
+    });
+    return id;
+  }, []);
+
+  const anularCompra = useCallback((gastoId) => {
+    const g = refs.current.gastos.find(x => x.id === gastoId);
+    if (!g) return;
+    setGastos(prev => {
+      const n = prev.filter(x => x.id !== gastoId);
+      pushDB(LS.gastos, n);
+      return n;
+    });
+    setCaja(prev => {
+      const c = prev + g.monto;
+      pushDB(LS.caja, c);
+      return c;
+    });
+  }, []);
+
+  // Un pedido a proveedor con varios productos: una sola salida de caja por el total.
+  const registrarOrden = useCallback(({ proveedor, lineas, fechaPedido, fechaEstimada, tracking, descontarCaja }) => {
+    const ordenId = 'ord-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+    const total = lineas.reduce((n, l) => n + l.cantidad * l.costo, 0);
+    const gastoId = descontarCaja && total > 0
+      ? registrarCompra({
+          monto: total, proveedor, ordenId,
+          descripcion: `${proveedor} · ${lineas.map(l => `${l.producto} ×${l.cantidad}`).join(', ')}`,
+        })
+      : null;
+    lineas.forEach(l => registrarPedido({
+      ordenId, proveedor, productoId: l.productoId, producto: l.producto,
+      cantidad: l.cantidad, costoUnitario: l.costo, fechaPedido, fechaEstimada, tracking,
+      gastoId, pagado: gastoId ? l.cantidad * l.costo : 0,
+    }));
+  }, [registrarCompra, registrarPedido]);
+
+  // Cancelar una orden devuelve a la caja lo que se había pagado.
+  const cancelarOrden = useCallback((ordenId) => {
+    const lineas = refs.current.pedidos.filter(p => p.ordenId === ordenId);
+    lineas.forEach(l => actualizarPedido(l.id, { estado: 'cancelado' }));
+    const gastoId = lineas.find(l => l.gastoId)?.gastoId;
+    if (gastoId) anularCompra(gastoId);
+  }, [actualizarPedido, anularCompra]);
+
   return (
     <AppContext.Provider value={{
       productos, ventas, deudas, caja, config, movimientos, gastos, pedidos,
       registrarPedido, actualizarPedido, eliminarPedido, recibirPedido,
+      registrarCompra, anularCompra, registrarOrden, cancelarOrden,
       activos, porCobrar, pasivos, metas, planPersonal, patrimonio, corteza,
       cargandoDB, errorDB,
       registrarVenta, cancelarVenta, agregarProducto, moverStock, editarProducto,

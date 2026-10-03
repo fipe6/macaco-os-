@@ -49,7 +49,7 @@ const totalOrden = (o) => o.lineas.reduce((n, l) => n + (l.costoUnitario || 0) *
 const unidadesOrden = (o) => o.lineas.reduce((n, l) => n + l.cantidad, 0);
 
 export default function PedidosTab() {
-  const { productos, ventas, pedidos, registrarPedido, actualizarPedido, eliminarPedido, recibirPedido } = useApp();
+  const { productos, ventas, pedidos, caja, registrarOrden, cancelarOrden, actualizarPedido, eliminarPedido, recibirPedido } = useApp();
   const [nuevo, setNuevo]     = useState(null);   // null | objeto con datos precargados
   const [recibir, setRecibir] = useState(null);   // orden a recibir
   const hoy = hoyISO();
@@ -68,12 +68,8 @@ export default function PedidosTab() {
   const historial = agruparOrdenes(pedidos.filter(p => p.estado === 'recibido' || p.estado === 'cancelado')).slice(0, 15);
   const invertidoTotal = resumen.reduce((n, g) => n + g.invertido, 0);
 
-  const guardarPedido = ({ proveedor, lineas, fechaPedido, fechaEstimada, tracking }) => {
-    const ordenId = 'ord-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
-    lineas.forEach(l => registrarPedido({
-      ordenId, proveedor, productoId: l.productoId, producto: l.producto,
-      cantidad: l.cantidad, costoUnitario: l.costo, fechaPedido, fechaEstimada, tracking,
-    }));
+  const guardarPedido = (orden) => {
+    registrarOrden(orden);
     setNuevo(null);
   };
 
@@ -164,7 +160,7 @@ export default function PedidosTab() {
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 14, fontWeight: 700 }}>{o.proveedor}</div>
                     <div style={{ fontSize: 11.5, color: MACACO.textMuted, marginTop: 3 }}>
-                      Pedido {fechaCorta(o.fechaPedido)} · {unidadesOrden(o)} u{total > 0 ? ` · ${clp(total)}` : ''}
+                      Pedido {fechaCorta(o.fechaPedido)} · {unidadesOrden(o)} u{total > 0 ? ` · ${clp(total)}` : ''}{o.lineas.some(l => l.gastoId) ? ' · pagado' : ''}
                     </div>
                   </div>
                   <span style={{
@@ -200,7 +196,7 @@ export default function PedidosTab() {
                   )}
                   <button onClick={() => setRecibir(o)} style={btn(MACACO.success, true)}>RECIBIDO</button>
                   <button
-                    onClick={() => { if (window.confirm('¿Cancelar este pedido?')) o.lineas.forEach(l => actualizarPedido(l.id, { estado: 'cancelado' })); }}
+                    onClick={() => { if (window.confirm(o.lineas.some(l => l.gastoId) ? '¿Cancelar este pedido? Se devuelve lo pagado a la caja.' : '¿Cancelar este pedido?')) cancelarOrden(o.key); }}
                     style={{ ...btn(MACACO.textMuted), flex: 'none', padding: '9px 12px' }}
                   >✕</button>
                 </div>
@@ -281,6 +277,7 @@ export default function PedidosTab() {
           inicial={nuevo}
           productos={productos}
           proveedores={proveedores}
+          caja={caja}
           onClose={() => setNuevo(null)}
           onSave={guardarPedido}
         />
@@ -335,7 +332,7 @@ function Sheet({ titulo, subtitulo, onClose, children }) {
   );
 }
 
-function NuevoPedidoSheet({ inicial, productos, proveedores, onClose, onSave }) {
+function NuevoPedidoSheet({ inicial, productos, proveedores, caja, onClose, onSave }) {
   const primero = productos.find(p => p.id === inicial.productoId) || productos[0];
   const [proveedor, setProveedor] = useState(inicial.proveedor || '');
   const [otro, setOtro]           = useState(false);
@@ -345,6 +342,7 @@ function NuevoPedidoSheet({ inicial, productos, proveedores, onClose, onSave }) 
   const [fechaPedido, setFechaPedido] = useState(hoyISO());
   const [fechaEst, setFechaEst]       = useState(null); // null = automática según demora promedio
   const [tracking, setTracking]       = useState('');
+  const [descontar, setDescontar]     = useState(true);
 
   const prov = proveedores.find(g => g.proveedor.toLowerCase() === proveedor.trim().toLowerCase());
   const leadProm = prov?.promedio ?? null;
@@ -471,12 +469,46 @@ function NuevoPedidoSheet({ inicial, productos, proveedores, onClose, onSave }) 
         <input value={tracking} onChange={e => setTracking(e.target.value)} placeholder="N° de seguimiento o nota" style={inputStyle} />
       </div>
 
+      {total > 0 && (
+        <div
+          onClick={() => setDescontar(d => !d)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', marginBottom: 14,
+            borderRadius: 12, cursor: 'pointer',
+            background: descontar ? 'rgba(245,197,24,0.07)' : MACACO.card,
+            border: `1px solid ${descontar ? 'rgba(245,197,24,0.35)' : MACACO.border}`,
+          }}
+        >
+          <div style={{
+            width: 22, height: 22, borderRadius: 6, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: descontar ? MACACO.primary : 'transparent', border: `1px solid ${descontar ? MACACO.primary : MACACO.border}`,
+            color: '#0A0A0F', fontSize: 14, fontWeight: 800,
+          }}>{descontar ? '✓' : ''}</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 700 }}>Descontar {clp(total)} de la caja</div>
+            <div style={{ fontSize: 11, color: MACACO.textMuted, marginTop: 2, lineHeight: 1.4 }}>
+              Queda en Finanzas como "Compra inventario". Caja actual {clp(caja)}.
+            </div>
+          </div>
+        </div>
+      )}
+      {descontar && total > caja && (
+        <div style={{
+          marginBottom: 14, padding: '10px 14px', borderRadius: 10,
+          background: 'rgba(255,77,77,0.08)', border: '1px solid rgba(255,77,77,0.3)',
+          fontSize: 12, color: MACACO.danger, fontWeight: 600,
+        }}>
+          La caja no alcanza ({clp(caja)}): quedaría en {clp(caja - total)}. Revisa si la caja está al día.
+        </div>
+      )}
+
       <button
         disabled={!canSave}
         onClick={() => canSave && onSave({
           proveedor: proveedor.trim(),
           lineas: validas.map(l => ({ productoId: l.productoId, producto: productos.find(p => p.id === l.productoId)?.name || '', cantidad: l.cantidad, costo: l.costo })),
           fechaPedido, fechaEstimada: fechaFinal || null, tracking: tracking.trim() || null,
+          descontarCaja: descontar,
         })}
         style={{
           width: '100%', padding: '15px', borderRadius: 12, border: 'none',
