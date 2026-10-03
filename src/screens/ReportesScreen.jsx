@@ -8,7 +8,7 @@ import {
   ventasDelDia, ventasDelMes, ventasUltimos7Dias,
   sumarTotal, sumarMargen, getDiasGraficoSemanal, getTopProductos,
   calcMetricasInventario, getResumenClientes, gastosDelMes, sumarGastos, MESES,
-  contarTransacciones, mesesConDatos, resumenMes, ventasPorProducto, mesKey, mesLabel,
+  contarTransacciones, mesesConDatos, resumenMes, ventasPorProducto, rotacionProductosMes, mesKey, mesLabel,
 } from '../store.jsx';
 
 const TABS = ['Diario', 'Semanal', 'Mensual', 'Clientes'];
@@ -394,66 +394,62 @@ function ReporteMensual({ ventas, movimientos, productos, config, gastos }) {
         />
       </div>
 
-      <ProductosDelMes vMes={vMes} productos={productos} fecha={hoy} esActual={esActual} />
+      <ProductosDelMes ventas={ventas} movimientos={movimientos} productos={productos} fecha={hoy} esActual={esActual} />
       {vMes.length === 0 && <EmptyState texto="Sin ventas registradas este mes" />}
     </>
   );
 }
 
-// Ventas por producto del mes + rotación (días que dura el stock actual al ritmo del mes).
-function ProductosDelMes({ vMes, productos, fecha, esActual }) {
-  const filas = ventasPorProducto(vMes);
-  const dias  = esActual ? fecha.getDate() : new Date(fecha.getFullYear(), fecha.getMonth() + 1, 0).getDate();
-  const vendidos = new Set(filas.map(f => f.id));
-  const sinMov = esActual ? productos.filter(p => p.stock > 0 && !vendidos.has(p.id)) : [];
-  if (filas.length === 0 && sinMov.length === 0) return null;
-
-  const stockDe = (id) => productos.find(p => p.id === id)?.stock;
-  const cobertura = (f) => {
-    const stock = stockDe(f.id);
-    if (!esActual || stock === undefined) return null;
-    if (stock <= 0) return 0;
-    const ritmo = f.unidades / dias;
-    return ritmo > 0 ? Math.round(stock / ritmo) : null;
-  };
+// Ventas, margen y rotación de cada producto en el mes elegido (también meses anteriores).
+function ProductosDelMes({ ventas, movimientos, productos, fecha, esActual }) {
+  const dias  = esActual ? fecha.getDate() : undefined;
+  const filas = rotacionProductosMes(ventas, movimientos, productos, fecha, dias);
+  if (filas.length === 0) return null;
+  const diasMes = dias || new Date(fecha.getFullYear(), fecha.getMonth() + 1, 0).getDate();
 
   return (
     <>
-      <SectionTitle>Ventas por producto</SectionTitle>
-      <Card padding={0} style={{ marginBottom: 12 }}>
+      <SectionTitle>Rotación por producto</SectionTitle>
+      <Card padding={0} style={{ marginBottom: 6 }}>
         {filas.map((f, i) => {
-          const dd = cobertura(f);
-          const color = dd === null ? MACACO.textMuted : dd <= 7 ? MACACO.danger : dd <= 21 ? MACACO.primary : MACACO.success;
+          const vendio = f.unidades > 0;
+          const color  = f.diasRotacion === null ? MACACO.textMuted : f.diasRotacion <= 15 ? MACACO.success : f.diasRotacion <= 30 ? MACACO.primary : MACACO.danger;
+          // Cuántos días alcanza el stock actual al ritmo de este mes (solo mes en curso)
+          const alcanza = esActual && vendio && f.stockFin > 0 ? Math.round(f.stockFin / (f.unidades / diasMes)) : null;
           return (
             <div key={f.id || f.nombre} style={{
               padding: '12px 14px',
-              borderBottom: i === filas.length - 1 && sinMov.length === 0 ? 'none' : `1px solid ${MACACO.borderSoft}`,
+              borderBottom: i === filas.length - 1 ? 'none' : `1px solid ${MACACO.borderSoft}`,
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, minWidth: 0 }}>{f.nombre}</div>
-                <div style={{ fontSize: 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{clp(f.total)}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+                  {vendio ? clp(f.total) : <span style={{ color: MACACO.textMuted, fontWeight: 500, fontSize: 11 }}>sin ventas</span>}
+                </div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3, fontSize: 11, color: MACACO.textMuted }}>
-                <span>{f.unidades} u · margen {clp(f.margen)}</span>
-                {esActual && (
-                  <span style={{ color, fontWeight: 600 }}>
-                    {dd === null ? 'sin rotación' : dd === 0 ? 'agotado' : `${dd} días de stock`}
+              {vendio && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3, fontSize: 11.5 }}>
+                  <span style={{ color: MACACO.textDim }}>
+                    Vendió <b style={{ color: '#fff' }}>{f.unidades} u</b> · margen <b style={{ color: MACACO.success }}>{clp(f.margen)}</b>
                   </span>
-                )}
+                  <span style={{ color, fontWeight: 700 }}>
+                    {f.rotacion !== null ? `${f.rotacion.toFixed(1)}× · ${f.diasRotacion} d` : '—'}
+                  </span>
+                </div>
+              )}
+              <div style={{ fontSize: 10.5, color: MACACO.textMuted, marginTop: 3 }}>
+                Stock {f.stockIni} → {f.stockFin}
+                {f.compras > 0 && ` · compras +${f.compras}`}
+                {f.vendidoPct !== null && vendio && ` · vendió ${f.vendidoPct.toFixed(0)}% de lo disponible`}
+                {alcanza !== null && ` · alcanza ~${alcanza} días`}
               </div>
             </div>
           );
         })}
-        {sinMov.map((p, i) => (
-          <div key={p.id} style={{
-            padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-            borderBottom: i === sinMov.length - 1 ? 'none' : `1px solid ${MACACO.borderSoft}`,
-          }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: MACACO.textDim }}>{p.name}</div>
-            <div style={{ fontSize: 11, color: MACACO.textMuted }}>{p.stock} u · sin ventas este mes</div>
-          </div>
-        ))}
       </Card>
+      <div style={{ fontSize: 10.5, color: MACACO.textMuted, lineHeight: 1.45, margin: '0 4px 14px' }}>
+        Rotación = unidades vendidas ÷ stock promedio del mes. Los días indican cada cuánto se renueva el stock (menos días = rota más rápido).
+      </div>
     </>
   );
 }

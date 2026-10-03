@@ -821,6 +821,52 @@ export function getResumenClientes(ventas) {
   return Object.values(m).map(c=>({...c, ticketPromedio:c.ltv/c.compras, margenPct:c.ltv>0?(c.margen/c.ltv)*100:0, topProducto:Object.entries(c.productos).sort((a,b)=>b[1]-a[1])[0]?.[0]||'—'})).sort((a,b)=>b.ltv-a.ltv);
 }
 
+// Rotación por producto en un mes. El stock al inicio/fin se reconstruye restando al
+// stock actual los movimientos posteriores. Rotación = unidades vendidas / stock promedio
+// (promedio entre inicio, disponible tras compras y fin de mes);
+// días = cada cuánto se renueva ese stock al ritmo del mes.
+export function rotacionProductosMes(ventas, movimientos, productos, fecha, diasTranscurridos) {
+  const ini = new Date(fecha.getFullYear(), fecha.getMonth(), 1);
+  const fin = new Date(fecha.getFullYear(), fecha.getMonth() + 1, 1);
+  const diasMes = diasTranscurridos || new Date(fecha.getFullYear(), fecha.getMonth() + 1, 0).getDate();
+  const vMes = ventasDelMes(ventas, fecha);
+  const porProd = {};
+  ventasPorProducto(vMes).forEach(f => { porProd[f.id || f.nombre] = f; });
+
+  const filas = productos.map(p => {
+    const v = porProd[p.id] || { unidades: 0, total: 0, margen: 0 };
+    let despuesFin = 0, desdeIni = 0, compras = 0;
+    movimientos.forEach(m => {
+      if (m.productoId !== p.id) return;
+      const t = new Date(m.fecha);
+      if (t >= fin) despuesFin += m.delta;
+      if (t >= ini) desdeIni += m.delta;
+      if (t >= ini && t < fin && m.tipo === 'compra') compras += m.delta;
+    });
+    const stockFin = Math.max(0, p.stock - despuesFin);
+    const stockIni = Math.max(0, p.stock - desdeIni);
+    const disponible = stockIni + compras;
+    const promedio = (stockIni + disponible + stockFin) / 3;
+    const rotacion = promedio > 0 && v.unidades > 0 ? v.unidades / promedio : null;
+    return {
+      id: p.id, nombre: p.name, unidades: v.unidades, total: v.total, margen: v.margen,
+      stockIni, stockFin, compras, promedio, rotacion,
+      diasRotacion: rotacion ? Math.round(diasMes / rotacion) : null,
+      vendidoPct: disponible > 0 ? Math.min(100, (v.unidades / disponible) * 100) : null,
+    };
+  });
+  // Productos que ya no están en el catálogo pero se vendieron ese mes
+  Object.values(porProd).forEach(f => {
+    if (!productos.some(p => p.id === f.id)) {
+      filas.push({ id: f.id, nombre: f.nombre, unidades: f.unidades, total: f.total, margen: f.margen,
+        stockIni: 0, stockFin: 0, compras: 0, promedio: 0, rotacion: null, diasRotacion: null, vendidoPct: null });
+    }
+  });
+  return filas
+    .filter(f => f.unidades > 0 || f.stockIni > 0 || f.stockFin > 0)
+    .sort((a, b) => b.total - a.total || b.stockFin - a.stockFin);
+}
+
 // ── Pedidos a proveedores ─────────────────────────────────────────────────────
 // Fechas como 'YYYY-MM-DD' (hora local) para que los días de demora sean exactos.
 export const hoyISO = (d = new Date()) =>
