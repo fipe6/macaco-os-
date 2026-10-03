@@ -10,7 +10,6 @@ import InventarioScreen from './screens/InventarioScreen.jsx';
 import ReportesScreen from './screens/ReportesScreen.jsx';
 import ConfigScreen from './screens/ConfigScreen.jsx';
 import GastoScreen from './screens/GastoScreen.jsx';
-import PersonalScreen from './screens/PersonalScreen.jsx';
 import CortezaScreen from './screens/CortezaScreen.jsx';
 import { flushQueue } from './services/webhook.js';
 import { DB_HABILITADO } from './services/supabase.js';
@@ -178,7 +177,6 @@ function AppInner() {
     venta:      <VentaScreen go={go} />,
     gasto:      <GastoScreen go={go} />,
     finanzas:   <FinanzasScreen go={go} />,
-    personal:   <PersonalScreen go={go} />,
     corteza:    <CortezaScreen go={go} />,
     inventario: <InventarioScreen go={go} />,
     reportes:   <ReportesScreen go={go} />,
@@ -276,7 +274,7 @@ function AppInner() {
             </div>
           )}
 
-          <BottomNav active={screen === 'personal' ? 'finanzas' : screen === 'corteza' ? 'home' : screen} go={go} />
+          <BottomNav active={screen === 'corteza' ? 'home' : screen} go={go} />
         </div>
       </IOSDevice>
     </div>

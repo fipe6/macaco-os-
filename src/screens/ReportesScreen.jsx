@@ -203,13 +203,12 @@ function ReporteMensual({ ventas, movimientos, productos, config, gastos }) {
   // Gastos del mes
   const gMes            = gastosDelMes(gastos, hoy);
   const gastosNegocio   = sumarGastos(gMes.filter(g => g.tipo === 'negocio'));
-  const gastosPersonal  = sumarGastos(gMes.filter(g => g.tipo === 'personal'));
   const gananciaNeta    = total - cogsMes - gastosNegocio;
   const ratioGastos     = total > 0 ? (gastosNegocio / total) * 100 : 0;
-  const hayGastos       = gastosNegocio > 0 || gastosPersonal > 0;
+  const hayGastos       = gastosNegocio > 0;
 
   // Máximo para escalar el gráfico
-  const maxGasto = Math.max(gastosNegocio, gastosPersonal, 1);
+  const maxGasto = Math.max(gastosNegocio, 1);
 
   return (
     <>
@@ -284,7 +283,7 @@ function ReporteMensual({ ventas, movimientos, productos, config, gastos }) {
         </div>
       </Card>
 
-      {/* Gráfico gastos negocio vs personal */}
+      {/* Gráfico gastos negocio */}
       {hayGastos && (
         <Card style={{ marginBottom: 14 }} padding={16}>
           <div style={{ fontSize: 10.5, color: MACACO.textDim, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 14 }}>
@@ -292,7 +291,6 @@ function ReporteMensual({ ventas, movimientos, productos, config, gastos }) {
           </div>
           {[
             { label: 'Negocio', val: gastosNegocio,  color: MACACO.orange },
-            { label: 'Personal', val: gastosPersonal, color: MACACO.cyan },
           ].map(({ label, val, color }) => {
             const pctBar = (val / maxGasto) * 100;
             return (

@@ -389,10 +389,8 @@ export function escanearCorteza({
   const brutas = [
     ...senalesDeuda({ deudas, caja, config }),
     ...senalCaja({ caja, config, porCobrar }),
-    ...senalesVencimiento({ vencimientos }),
     ...senalesStock({ productos, vel, config, tasaMax }),
     ...senalMeta({ ventas, config, ahora: t }),
-    ...senalCobranza({ porCobrar, tasaMax }),
     ...senalesClientes({ ventas, ahora: t }),
     ...senalGastos({ gastos, ventas, ahora: t }),
   ];

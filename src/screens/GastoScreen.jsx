@@ -16,13 +16,6 @@ const GASTOS = {
     { id: 'sueldo',        nombre: 'Sueldo personal', monto: 80_000 },
     { id: 'otros-negocio', nombre: 'Otros',           monto: null },
   ],
-  personal: [
-    { id: 'alimentacion',   nombre: 'Alimentación', monto: null },
-    { id: 'transporte',     nombre: 'Transporte',   monto: null },
-    { id: 'salud',          nombre: 'Salud',        monto: null },
-    { id: 'ocio',           nombre: 'Ocio',         monto: null },
-    { id: 'otros-personal', nombre: 'Otros',        monto: null },
-  ],
 };
 
 export default function GastoScreen({ go }) {
@@ -83,7 +76,7 @@ export default function GastoScreen({ go }) {
       {/* Tipo */}
       <SectionTitle>Tipo de gasto</SectionTitle>
       <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-        {[['negocio', 'Negocio', MACACO.orange], ['personal', 'Personal', MACACO.cyan]].map(([t, label, color]) => {
+        {[['negocio', 'Negocio', MACACO.orange]].map(([t, label, color]) => {
           const active = tipo === t;
           return (
             <button key={t} onClick={() => setTipo(t)} style={{
