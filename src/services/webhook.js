@@ -17,8 +17,10 @@ function readQueue() {
   try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch { return []; }
 }
 function writeQueue(q) {
-  localStorage.setItem(QUEUE_KEY, JSON.stringify(q));
+  try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); } catch {}
 }
+
+const TIMEOUT_MS = 8000;
 
 async function post(path, payload) {
   const body = {
@@ -40,8 +42,12 @@ async function post(path, payload) {
   }
 
   const url = `${BASE.replace(/\/$/, '')}${path}`;
+  // Sin timeout, un n8n caído que no responde deja el fetch colgado para siempre.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
     const res = await fetch(url, {
+      signal: controller.signal,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -57,6 +63,8 @@ async function post(path, payload) {
     q.push({ path, body, queuedAt: Date.now(), error: String(err) });
     writeQueue(q);
     return { ok: false, queued: true, error: String(err) };
+  } finally {
+    clearTimeout(timer);
   }
 }
 
