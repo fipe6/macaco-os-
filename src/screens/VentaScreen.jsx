@@ -100,6 +100,8 @@ export default function VentaScreen({ go }) {
     setSending(true);
     const packId = esPack ? 'pack-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5) : undefined;
     const stockCorriente = {};
+    const ventasPack = [];
+    const movsPack   = [];
     for (let i = 0; i < todas.length; i++) {
       const l = todas[i];
       const pr = prodDe(l.productId);
@@ -118,8 +120,8 @@ export default function VentaScreen({ go }) {
       };
       const antes = stockCorriente[l.productId] ?? pr.stock;
       stockCorriente[l.productId] = Math.max(0, antes - l.qty);
-      registrarVenta(venta);
-      registrarMovimiento({
+      ventasPack.push(venta);
+      movsPack.push({
         productoId:   l.productId,
         producto:     pr.name,
         tipo:         'venta',
@@ -127,8 +129,11 @@ export default function VentaScreen({ go }) {
         stockAntes:   antes,
         stockDespues: stockCorriente[l.productId],
       });
-      await sendVenta(venta);
     }
+    registrarVenta(ventasPack);
+    registrarMovimiento(movsPack);
+    // n8n es fire-and-forget: si no responde, la venta ya quedó guardada igual.
+    ventasPack.forEach(v => { sendVenta(v).catch(() => {}); });
     setSent(true);
     setSending(false);
     setTimeout(() => { go('home'); }, 1400);

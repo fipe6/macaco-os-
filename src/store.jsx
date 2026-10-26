@@ -296,26 +296,34 @@ export function AppProvider({ children }) {
 
   // ── Acciones — cada una persiste explícitamente a Supabase ────────────────
 
-  const registrarVenta = useCallback((venta) => {
-    const nueva = { ...venta, id: Date.now().toString() + Math.random().toString(36).slice(2, 6), fecha: new Date().toISOString() };
+  // Acepta una venta o un array (todas las líneas de un pack). Un pack se guarda
+  // en UN solo push por clave: varios pushDB del array completo en paralelo
+  // pueden llegar desordenados y el más viejo pisaría al más nuevo.
+  const registrarVenta = useCallback((ventaOLineas) => {
+    const lineas = Array.isArray(ventaOLineas) ? ventaOLineas : [ventaOLineas];
+    if (lineas.length === 0) return;
+    const fecha  = new Date().toISOString();
+    const nuevas = lineas.map(venta => ({ ...venta, id: Date.now().toString() + Math.random().toString(36).slice(2, 6), fecha }));
+    const vendido = {};
+    lineas.forEach(l => { vendido[l.productoId] = (vendido[l.productoId] || 0) + l.cantidad; });
 
     setVentas(prev => {
-      const v = [nueva, ...prev];
+      const v = [...nuevas.slice().reverse(), ...prev];
       pushDB(LS.ventas, v);
       return v;
     });
     setProductos(prev => {
       const p = prev.map(p => {
-        if (p.id !== venta.productoId) return p;
-        const s = Math.max(0, p.stock - venta.cantidad);
+        if (!vendido[p.id]) return p;
+        const s = Math.max(0, p.stock - vendido[p.id]);
         return { ...p, stock: s, status: calcStatus(s, refs.current.config.alertaStockBajo) };
       });
       pushDB(LS.productos, p);
-      pushInv(p.filter(prod => prod.id === venta.productoId));
+      pushInv(p.filter(prod => vendido[prod.id]));
       return p;
     });
     setCaja(prev => {
-      const c = prev + venta.total;
+      const c = prev + lineas.reduce((n, l) => n + l.total, 0);
       pushDB(LS.caja, c);
       return c;
     });
@@ -428,9 +436,13 @@ export function AppProvider({ children }) {
     });
   }, []);
 
-  const registrarMovimiento = useCallback((mov) => {
+  // Acepta un movimiento o un array (un pack) — mismo motivo que registrarVenta.
+  const registrarMovimiento = useCallback((movOLista) => {
+    const lista = Array.isArray(movOLista) ? movOLista : [movOLista];
+    if (lista.length === 0) return;
+    const nuevos = lista.map(mov => ({ ...mov, id: Date.now().toString() + Math.random().toString(36).slice(2, 6), fecha: mov.fecha || new Date().toISOString() }));
     setMovimientos(prev => {
-      const m = [{ ...mov, id: Date.now().toString() + Math.random().toString(36).slice(2, 6), fecha: mov.fecha || new Date().toISOString() }, ...prev];
+      const m = [...nuevos.slice().reverse(), ...prev];
       pushDB(LS.movimientos, m);
       return m;
     });
