@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { MACACO, clp, clpCompact } from '../theme.js';
 import { Card, SectionTitle, Progress, Trend, Dot, Icon } from '../components/ui.jsx';
 import { Screen } from '../components/Screen.jsx';
-import { sendReporteWhatsApp } from '../services/webhook.js';
 import { useApp } from '../store.jsx';
 import {
   ventasDelDia, ventasDelMes, ventasUltimos7Dias,
@@ -16,23 +15,18 @@ const TABS = ['Diario', 'Semanal', 'Mensual', 'Clientes'];
 export default function ReportesScreen() {
   const { ventas, movimientos, productos, config, gastos } = useApp();
   const [tab,     setTab]     = useState('Mensual');
-  const [sending, setSending] = useState(false);
-
-  const enviarWsp = async () => {
-    setSending(true);
+  // Arma el resumen y abre WhatsApp con el texto listo para mandar (sin n8n).
+  const enviarWsp = () => {
     const hoy  = new Date();
-    const vMes = ventasDelMes(ventas);
-    const vHoy = ventasDelDia(ventas);
-    const vSem = ventasUltimos7Dias(ventas);
-    await sendReporteWhatsApp(tab.toLowerCase(), {
-      tipo:     tab,
-      totalMes: sumarTotal(vMes),
-      totalHoy: sumarTotal(vHoy),
-      totalSem: sumarTotal(vSem),
-      meta:     config.metaMensual,
-      mes:      MESES[hoy.getMonth()],
-    });
-    setSending(false);
+    const totalMes = sumarTotal(ventasDelMes(ventas));
+    const pct = config.metaMensual > 0 ? Math.round((totalMes / config.metaMensual) * 100) : 0;
+    const texto = [
+      `🐒 Macaco · Reporte ${tab.toLowerCase()} — ${hoy.toLocaleDateString('es-CL')}`,
+      `Hoy: ${clp(sumarTotal(ventasDelDia(ventas)))}`,
+      `Últimos 7 días: ${clp(sumarTotal(ventasUltimos7Dias(ventas)))}`,
+      `${MESES[hoy.getMonth()]}: ${clp(totalMes)} (${pct}% de la meta ${clp(config.metaMensual)})`,
+    ].join('\n');
+    window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank');
   };
 
   return (
@@ -71,14 +65,14 @@ export default function ReportesScreen() {
       </div>
 
       {tab !== 'Clientes' && (
-        <button onClick={enviarWsp} disabled={sending} style={{
+        <button onClick={enviarWsp} style={{
           width: '100%', padding: '14px', marginTop: 16,
           background: '#25D366', color: '#fff', border: 'none', borderRadius: 12,
           fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-          boxShadow: '0 0 24px rgba(37,211,102,0.3)', opacity: sending ? 0.7 : 1,
+          boxShadow: '0 0 24px rgba(37,211,102,0.3)',
         }}>
-          <Icon.whatsapp size={16}/> {sending ? 'Enviando...' : 'Enviar reporte a WhatsApp'}
+          <Icon.whatsapp size={16}/> Enviar reporte a WhatsApp
         </button>
       )}
     </Screen>
