@@ -1,0 +1,57 @@
+/* Pack campaign cards: real product artwork layered over the Makako gold scene. */
+.packs-grid{gap:28px}.pack-card{background:#0c0d0f;border:1px solid #b9924159;border-radius:12px;box-shadow:0 16px 45px #0007}.pack-card:hover{border-color:#d8b454}
+.pack-images{height:auto;aspect-ratio:1/1.16;padding:0;display:block;background:#090909 url('assets/pack-gorilla-gold.png') center/cover}
+.pack-images:after{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(0deg,#0c0d0f 0%,transparent 18%,transparent 85%,#0007)}
+.pack-images .pack-badge{top:auto;bottom:12px;right:12px;z-index:3}
+.pack-images .pack-brand{position:absolute;left:5%;top:6%;width:30%;height:auto;max-height:none;object-fit:contain;z-index:2}
+.pack-art-motto{position:absolute;right:5%;top:7%;font-size:clamp(10px,1vw,13px);font-weight:850;line-height:1.15;font-style:italic;color:#f5d676;z-index:2;text-align:right;transform:rotate(-5deg)}
+.pack-stage{position:absolute;inset:34% 7% 5%;display:flex;align-items:flex-end;justify-content:center;gap:2%;z-index:1;--scene-scale:1}
+.pack-pair-art{display:block;width:100%;height:100%;object-fit:contain;object-position:center bottom;filter:drop-shadow(0 10px 12px #0009)}
+.pack-cutout{--crop-x:.32;--crop-y:.30;--crop-w:.36;--crop-h:.55;position:relative;display:block;width:33%;aspect-ratio:calc(.75 * var(--crop-w) / var(--crop-h));flex-shrink:0}
+.pack-cutout img{position:absolute;width:calc(100% / var(--crop-w));left:calc(-100% * var(--crop-x) / var(--crop-w));top:calc(-100% * var(--crop-y) / var(--crop-h));height:auto;max-height:none;max-width:none;clip-path:var(--shape);object-fit:fill;filter:drop-shadow(0 5px 8px #0008)}
+.cutout-grizzly-whey{--crop-x:.25;--crop-y:.25;--crop-w:.49;--crop-h:.64;--shape:polygon(35% 25%,64% 25%,67% 27%,67% 33%,71% 39%,73% 44%,73% 82%,70% 87%,61% 89%,34% 89%,27% 87%,25% 82%,27% 43%,30% 35%,33% 32%,33% 27%)}
+.cutout-musclewhey{--crop-x:.27;--crop-y:.235;--crop-w:.465;--crop-h:.50;--shape:polygon(30% 24%,38% 23.5%,66% 23.5%,72% 25%,73% 28%,73% 70%,68% 73%,36% 74%,28% 72%,27% 28%)}
+.cutout-creatina-ultimate{--crop-x:.30;--crop-y:.26;--crop-w:.40;--crop-h:.59;--shape:polygon(38% 26%,62% 26%,65% 27%,65% 34%,61% 35%,61% 37%,67% 39%,70% 43%,70% 81%,67% 84%,60% 85%,37% 85%,31% 83%,30% 80%,30% 43%,33% 40%,39% 37%,39% 35%,35% 34%,35% 27%)}
+.cutout-creatina-inner{--crop-x:.225;--crop-y:.34;--crop-w:.55;--crop-h:.51;--shape:polygon(24% 34%,77% 36%,77% 41%,75% 45%,75% 83%,72% 85%,25% 84%,23% 82%,23% 40%,22.5% 37%)}
+.cutout-magnesio{--crop-x:.32;--crop-y:.305;--crop-w:.36;--crop-h:.53;--shape:polygon(39% 30.5%,61% 30.5%,63% 31%,63% 36.5%,60% 37.5%,60% 39.5%,66% 41%,68% 44%,68% 79%,64% 82%,57% 83.5%,39% 83.5%,34% 81.5%,32% 78%,32% 44%,34% 41%,41% 39.5%,41% 37.5%,37% 36.5%,37% 31%)}
+.cutout-cafeina{--crop-x:.32;--crop-y:.31;--crop-w:.355;--crop-h:.53;--shape:polygon(39% 31%,61% 31%,62% 32%,62% 37%,59% 38%,59% 40%,65% 42%,67% 45%,67% 79%,64% 82%,56% 84%,41% 84%,35% 82%,32% 78%,32% 45%,35% 42%,41% 40%,41% 38%,37% 37%,37% 32%)}
+.cutout-omega3{--crop-x:.325;--crop-y:.295;--crop-w:.35;--crop-h:.59;--shape:polygon(39% 29.5%,60% 29.5%,62% 31%,62% 39%,59% 40%,59% 43%,64% 45%,67% 48%,67% 82%,64% 87%,59% 88.5%,41% 88.5%,35% 86%,32.5% 82%,32.5% 48%,36% 45%,41% 43%,41% 40%,37% 39%,37% 31%)}
+.cutout-pump{--crop-x:.275;--crop-y:.265;--crop-w:.46;--crop-h:.44;aspect-ratio:calc(var(--crop-w) / var(--crop-h));--shape:polygon(31% 26.5%,69% 26.5%,73% 27.5%,73% 34%,70% 35%,73% 37%,73% 67%,69% 70%,33% 70.5%,29% 69%,28% 67%,28% 37%,30% 35%,28% 34%,28% 28%)}
+.cutout-essential{--crop-x:.255;--crop-y:.34;--crop-w:.49;--crop-h:.465;--shape:polygon(32% 34%,65% 34%,72% 35%,74% 38%,74% 43%,73% 45%,74% 46%,74% 75%,70% 79%,64% 80.5%,36% 80.5%,29% 79%,26% 76%,26% 46%,25.5% 44%,26% 38%,27% 36%)}
+.cutout-thavage{--crop-x:.265;--crop-y:.307;--crop-w:.47;--crop-h:.52;--shape:polygon(33% 31%,64% 30.7%,70% 32%,73% 35%,73% 40%,71% 42%,73% 44%,73% 79%,69% 82%,35% 83%,28% 81%,27% 79%,27% 44%,26.5% 42%,27% 35%,28% 33%)}
+/* Size the actual containers by height, rather than equal image widths.
+   These are visual proportions, not measured package dimensions. */
+.pack-stage:not(:has(.cutout-grizzly-whey,.cutout-musclewhey,.cutout-promo-grizzly)){--scene-scale:1.28}
+.pack-images[data-pack-size] .pack-cutout{width:auto;height:calc(var(--object-height,46%) * var(--scene-scale));flex:0 0 auto}
+.cutout-grizzly-whey,.cutout-musclewhey{--object-height:96%}
+.cutout-creatina-ultimate{--object-height:46%}
+.cutout-creatina-inner{--object-height:50%}
+.cutout-cafeina,.cutout-magnesio{--object-height:32%}
+.cutout-omega3{--object-height:34%}
+.cutout-pump{--object-height:45%}
+.cutout-essential{--object-height:52%}
+.cutout-thavage{--object-height:54%}
+.cutout-venom{--object-height:50%;--crop-x:.28;--crop-y:.32;--crop-w:.44;--crop-h:.49;--shape:polygon(32% 32%,65% 32%,72% 35%,72% 40%,71% 44%,71% 76%,67% 80%,35% 81%,30% 79%,28% 76%,28% 44%,29% 41%,28% 35%)}
+.cutout-promo-grizzly{--object-height:94%;--crop-x:0;--crop-y:0;--crop-w:1;--crop-h:1;--shape:inset(0)}
+.stock-badge{position:absolute;top:14px;left:14px;z-index:4;background:#242424;color:#fff;padding:9px 13px;font-size:11px;font-weight:750;border:1px solid #777}
+.pack-content{padding:22px;gap:0}.pack-content h3{font-size:clamp(27px,2.7vw,34px);font-weight:900;letter-spacing:-1px;line-height:1.02;margin:7px 0 14px;color:#f7db82;text-transform:uppercase;font-style:italic}
+.pack-purpose{font-size:12px;color:#c7c1b5;line-height:1.7;margin:0 0 18px}
+.pack-pricing{padding:17px 19px;background:linear-gradient(110deg,#b98d30,#f9df84 48%,#d0a743);border-radius:3px;position:relative;margin:0 0 23px;color:#0b0b0b;box-shadow:0 0 25px #b992411c}
+.pack-pricing>strong{font-size:clamp(36px,4vw,48px);font-weight:900;font-style:italic;line-height:1.05;letter-spacing:-1.8px}
+.pack-pricing>span,.pack-pricing .pack-offer-label,.pack-pricing .pack-savings{color:#262016}.pack-pricing .pack-offer-label{font-size:10px;font-weight:850;letter-spacing:1.4px}.pack-pricing .pack-savings{font-weight:750}
+.pack-benefit-heading{font-size:10px;font-weight:750;color:#ead290;letter-spacing:.8px}
+.pack-benefits{list-style:none;margin:15px 0 22px;padding:0;display:flex;flex-direction:column;gap:12px;flex:1}
+.pack-benefits li{display:flex;align-items:flex-start;gap:10px;font-size:12px;line-height:1.65;color:#ece8df}
+.benefit-check{display:grid;place-items:center;width:21px;height:21px;border:1px solid #52cf7f;background:#173424;color:#78ed9d;flex-shrink:0;border-radius:50%;font-weight:850;line-height:1}
+.pack-includes{border-top:1px solid #b992413d;padding:15px 0 18px;font-size:11px;color:#bfb7a5}.pack-includes summary{cursor:pointer;color:#d1be8b;min-height:24px}.pack-components{margin:10px 0 0}.pack-content .primary{background:#efcb4e;border-radius:4px;min-height:48px}
+.packs-heading-actions{display:flex;gap:12px;flex-direction:column;align-items:flex-end}.packs-heading-actions .secondary{font-size:10px;padding:12px;min-height:42px}
+.pack-benefit-sources{margin-top:35px;font-size:12px;color:#bcb7ad;border-top:1px solid #4e402a;padding-top:20px}.pack-benefit-sources summary{cursor:pointer;color:#d4b871}.pack-benefit-sources p{line-height:1.7;max-width:800px}.pack-benefit-sources a{display:block;margin:12px 0;color:#d4b871}
+.pack-price-heading{font-size:23px;margin:35px 0 10px;color:#f1d489}.pack-price-help{font-size:12px;line-height:1.7;color:#bcb7ad;max-width:650px}
+@media(max-width:600px){.packs-heading-actions{align-items:flex-start}.packs-section{padding-top:60px}.pack-images{aspect-ratio:1/1.08}.pack-art-motto{font-size:12px}.pack-content{padding:22px}.pack-pricing>strong{font-size:45px}}
+
+.pack-pre-link{display:flex;align-items:center;justify-content:space-between;gap:20px;margin:0 0 30px;font-size:12px;color:#d1be8b}.pack-pre-link .secondary{font-size:10px;min-height:42px}@media(max-width:600px){.pack-pre-link{align-items:flex-start;flex-direction:column;gap:15px}}
+.category-grid{grid-template-columns:repeat(6,minmax(0,1fr))}
+.category-grid>button{grid-column:span 2}
+.category-grid>button:nth-child(n+4){grid-column:span 3}
+@media(max-width:1100px){.category-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.category-grid>button,.category-grid>button:nth-child(n+4){grid-column:span 1}.category-grid>button:last-child{grid-column:span 2}}
+@media(max-width:600px){.category-grid{grid-template-columns:1fr}.category-grid>button,.category-grid>button:nth-child(n+4),.category-grid>button:last-child{grid-column:span 1}}

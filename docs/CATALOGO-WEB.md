@@ -1,5 +1,14 @@
 # Catálogo web ↔ Macaco OS
 
+**Desde el 27-10-2026 el catálogo vive acá:** `public/catalogo/` → `macaco-os.vercel.app/catalogo/`
+(copia del publicado en makako-fit-catalogo.vercel.app + imágenes de makako-control).
+Sin Sites: se quitaron `/api/prices`, el editor de precios, el link a `control.html` y las
+fotos en `chatgpt.site` (las originales quedan en `public/catalogo/assets/originales/`,
+achicadas a 1600 px). `vercel.json` solo redirige `/catalogo` → `/catalogo/`.
+Agotado, foto y **precio** salen de la vista `catalogo_publico` (`aplicarMacacoOS` en
+`public/catalogo/app.js`). El precio se aplica al producto principal; otras presentaciones
+con precio propio quedan como en `catalogo.json`. Packs y ofertas del día siguen en `packs.json`.
+
 Catálogo: https://makako-fit-catalogo.vercel.app (sitio estático: `catalogo.json`,
 `packs.json`, `app.js`, `/api/prices`, `control.html`). Ya sabe mostrar AGOTADO cuando un
 producto trae `stock: 0`, pero hoy ese dato está escrito a mano en `catalogo.json`.
@@ -7,8 +16,8 @@ producto trae `stock: 0`, pero hoy ese dato está escrito a mano en `catalogo.js
 ## Cómo queda conectado
 1. Cada cambio de productos en Macaco OS (venta, ajuste, foto) escribe además
    `app_data` → `macaco:catalogo` (vía `commit()` → `pushDB()`), con
-   `{ "<id del catálogo>": { "agotado": true|false, "imagen": "https://…"|null } }`.
-   Sin costos ni unidades. Lógica en `src/domain/catalogoWeb.js` (con test).
+   `{ "<id del catálogo>": { "agotado": true|false, "imagen": "https://…"|null, "precio": 23000|null } }`.
+   Sin costos ni unidades. El precio de venta es público. Lógica en `src/domain/catalogoWeb.js` (con test).
 2. La vista pública `catalogo_publico` deja leer **solo esa clave** sin login
    (`supabase/migraciones/2026-10-27-fotos-y-catalogo.sql`, falta aplicarla).
 3. El catálogo lee la vista al cargar y encima de `catalogo.json` pone

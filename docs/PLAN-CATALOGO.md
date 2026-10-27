@@ -22,6 +22,10 @@ ChatGPT armó otro panel llamado MAKAKO OS en Sites (`…chatgpt.site/os/`) con 
 (`axzwxcykfozsscudpfyh`) y datos viejos en D1. No es esta app ni esta base. No mezclar
 stock ni ventas de ahí sin que Felipe lo confirme.
 
+## Hecho el 27-10 (rama v2)
+- Pasos 1, 2 y 5 (pruebas Playwright con datos simulados). Falta el paso 3 (elegir ficha en
+  Productos), mover packs a Macaco OS, y cambiar enlaces de Instagram cuando Felipe lo vea.
+
 ## Pasos (sesión nueva con `makakosuplementos-ship-it/macaco-os-` y `makako-control`)
 1. Copiar el catálogo estático a `public/catalogo/` de Macaco OS (html, css, js, assets,
    catalogo.json, packs.json) → queda en `macaco-os.vercel.app/catalogo/`.

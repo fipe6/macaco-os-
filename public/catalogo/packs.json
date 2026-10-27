@@ -1,0 +1,143 @@
+[
+  {
+    "id": "pack-grizzly-4kg-oct15",
+    "name": "Doble Grizzly · 4 kg",
+    "label": "OFERTA SOLO HOY · 15 OCT",
+    "items": ["grizzly-whey", "grizzly-whey"],
+    "purpose": "Dos tarros de Fit Protein Grizzly Bear de 2 kg. Elige dos sabores entre Bonobom, Vainilla, Piña colada, Chocolate brownie, Cookies & cream y Mora crema. Oferta válida el jueves 15 de octubre de 2026, sujeta a disponibilidad.",
+    "flavorChoice": "2 sabores a elección; indícalos por WhatsApp",
+    "productImage": "assets/grizzly-bear-2kg-pareja.png",
+    "offerDate": "2026-10-15",
+    "offerPrice": 60000
+  },
+  {
+    "id": "pack-grizzly-duo",
+    "name": "Fuerza Grizzly",
+    "label": "GRIZZLY / FUERZA",
+    "items": [
+      "grizzly-whey",
+      "creatina-ultimate"
+    ],
+    "purpose": "Proteína y creatina para acompañar tus rutinas de fuerza y recuperación."
+  },
+  {
+    "id": "pack-grizzly-energia",
+    "name": "Energía Grizzly",
+    "label": "GRIZZLY / ENERGÍA",
+    "items": [
+      "grizzly-whey",
+      "cafeina",
+      "omega3"
+    ],
+    "purpose": "Proteína, estado de alerta y aporte nutricional para tu entrenamiento."
+  },
+  {
+    "id": "pack-grizzly-completo",
+    "name": "Grizzly Completo",
+    "label": "GRIZZLY / COMPLETO",
+    "items": [
+      "grizzly-whey",
+      "creatina-ultimate",
+      "magnesio",
+      "omega3"
+    ],
+    "purpose": "Una combinación para el entrenamiento, la recuperación y el apoyo nutricional."
+  },
+  {
+    "id": "pack-iso-definicion",
+    "name": "Definición ISO",
+    "label": "ISOLATE / DEFINICIÓN",
+    "items": [
+      "musclewhey",
+      "cafeina",
+      "creatina-ultimate"
+    ],
+    "purpose": "Proteína, fuerza y estado de alerta para acompañar tu etapa de definición."
+  },
+  {
+    "id": "pack-iso-fuerza",
+    "name": "Fuerza ISO",
+    "label": "ISOLATE / FUERZA",
+    "items": [
+      "musclewhey",
+      "creatina-inner",
+      "omega3"
+    ],
+    "purpose": "Aporte de proteína y apoyo al rendimiento en tu rutina de fuerza."
+  },
+  {
+    "id": "pack-iso-equilibrio",
+    "name": "Recuperación ISO",
+    "label": "ISOLATE / RECUPERACIÓN",
+    "items": [
+      "musclewhey",
+      "magnesio",
+      "omega3"
+    ],
+    "purpose": "Proteína para la recuperación, con apoyo muscular y nutricional."
+  },
+  {
+    "id": "pack-energia",
+    "name": "Impulso",
+    "label": "CREATINA / ENERGÍA",
+    "items": [
+      "creatina-ultimate",
+      "cafeina",
+      "omega3"
+    ],
+    "purpose": "Creatina y cafeína para acompañar tus sesiones de entrenamiento."
+  },
+  {
+    "id": "pack-bienestar",
+    "name": "Bienestar",
+    "label": "OMEGA 3 / MAGNESIO",
+    "items": [
+      "magnesio",
+      "omega3"
+    ],
+    "purpose": "Apoyo nutricional y función muscular para complementar tu día a día."
+  },
+  {
+    "id": "pack-base",
+    "name": "Base Activa",
+    "label": "CREATINA / BIENESTAR",
+    "items": [
+      "creatina-inner",
+      "magnesio",
+      "omega3"
+    ],
+    "purpose": "Creatina, función muscular y aporte nutricional para una rutina constante."
+  },
+  {
+    "id": "pack-pump-inicio",
+    "name": "Inicio Pump",
+    "label": "PREENTRENO / ESENCIAL",
+    "items": [
+      "pump",
+      "creatina-ultimate"
+    ],
+    "purpose": "Pump² sin estimulantes y creatina: una combinación sencilla para entrenar."
+  },
+  {
+    "id": "pack-essential-energia",
+    "name": "Energía Essential",
+    "label": "PREENTRENO / INTERMEDIO",
+    "items": [
+      "essential",
+      "creatina-inner",
+      "omega3"
+    ],
+    "purpose": "Preentreno, creatina y apoyo nutricional en una combinación para tu rutina."
+  },
+  {
+    "id": "pack-venom-completo",
+    "name": "Venom Completo",
+    "label": "PREENTRENO / COMPLETO",
+    "items": [
+      "venom",
+      "grizzly-whey",
+      "creatina-ultimate"
+    ],
+    "purpose": "Preentreno, proteína y creatina para acompañar la sesión y la recuperación."
+  }
+]

@@ -1,0 +1,5 @@
+{
+  "redirects": [
+    { "source": "/catalogo", "destination": "/catalogo/", "permanent": false }
+  ]
+}

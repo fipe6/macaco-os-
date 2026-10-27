@@ -1,0 +1,419 @@
+{
+  "brand": "Makako Fit",
+  "whatsapp": "56948674692",
+  "products": [
+    {
+      "id": "musclewhey",
+      "name": "MuscleWhey Isolate",
+      "brand": "Hexacore",
+      "category": "Proteínas",
+      "flavor": "Hell Chocolate · Cookies Extreme",
+      "size": "64 porciones",
+      "price": 49990,
+      "image": "assets/musclewhey.webp",
+      "tag": "PROTEÍNA",
+      "description": "MuscleWhey Isolate de Hexacore. Elige entre Hell Chocolate y Cookies Extreme. 64 porciones.",
+      "stock": null,
+      "benefits": [
+        "Ayuda a completar el aporte diario de proteína.",
+        "Apoya el mantenimiento muscular y la recuperación junto al entrenamiento."
+      ],
+      "benefitSource": {
+        "label": "NIH · Información sobre el ingrediente",
+        "url": "https://ods.od.nih.gov/factsheets/ExerciseAndAthleticPerformance-DatosEnEspanol/"
+      },
+      "variants": [
+        {
+          "id": "musclewhey",
+          "flavor": "Hell Chocolate",
+          "price": 49990,
+          "image": "assets/musclewhey.webp"
+        },
+        {
+          "id": "musclewhey-cookies",
+          "flavor": "Cookies Extreme",
+          "price": null,
+          "image": "assets/musclewhey-cookies-makako.webp",
+          "originalImage": "assets/originales/IMG_4444.jpeg"
+        }
+      ]
+    },
+    {
+      "id": "gummy",
+      "name": "Creatine Gummy",
+      "brand": "4Active",
+      "category": "Creatinas",
+      "flavor": "Frutilla",
+      "size": "300 g · 90 gomitas",
+      "price": 18000,
+      "image": "assets/gummy.webp",
+      "tag": "CREATINA EN GOMITAS",
+      "description": "Creatina monohidratada en gomitas sabor frutilla. Presentación de 300 g, 90 gomitas y 30 porciones según la imagen del catálogo.",
+      "stock": null,
+      "benefits": [
+        "Formato práctico para complementar la ingesta de creatina.",
+        "La creatina apoya el rendimiento en esfuerzos breves y repetidos de alta intensidad."
+      ],
+      "benefitSource": {
+        "label": "NIH · Información sobre el ingrediente",
+        "url": "https://ods.od.nih.gov/factsheets/ExerciseAndAthleticPerformance-DatosEnEspanol/"
+      }
+    },
+    {
+      "id": "pump",
+      "name": "Pump²",
+      "brand": "RAW Nutrition",
+      "category": "Pre entreno",
+      "flavor": "Sin sabor",
+      "size": "360 g · 60 porciones",
+      "price": 24990,
+      "image": "assets/pump.webp",
+      "tag": "PRE ENTRENO",
+      "description": "RAW Pump², presentación sin sabor de 360 g y 60 porciones según la imagen del catálogo.",
+      "stock": null,
+      "benefits": [
+        "Formato sin sabor para combinar con tu bebida de entrenamiento."
+      ]
+    },
+    {
+      "id": "thavage",
+      "name": "Thavage Pre-Workout",
+      "brand": "RAW × CBUM",
+      "category": "Pre entreno",
+      "flavor": "Green Crush",
+      "size": "520 g · 40 porciones",
+      "price": 35000,
+      "image": "assets/thavage-makako.webp",
+      "originalImage": "assets/originales/IMG_4434.jpeg",
+      "tag": "PRE ENTRENO",
+      "description": "Thavage Pre-Workout de RAW × CBUM. 520 g · 40 porciones.",
+      "benefits": [
+        "Fórmula para acompañar el entrenamiento, orientada a energía y enfoque."
+      ],
+      "benefitSource": {
+        "label": "Información del fabricante",
+        "url": "https://thavage.getrawnutrition.com/"
+      },
+      "stock": 0
+    },
+    {
+      "id": "psychotic",
+      "name": "Psychotic",
+      "brand": "Insane Labz",
+      "category": "Pre entreno",
+      "flavor": "Blue Raspberry",
+      "size": "35 porciones",
+      "price": 37000,
+      "image": "assets/psychotic-makako.webp",
+      "originalImage": "assets/originales/IMG_4435.jpeg",
+      "tag": "PRE ENTRENO",
+      "description": "Psychotic de Insane Labz. 35 porciones.",
+      "benefits": [
+        "Fórmula para acompañar el entrenamiento, orientada a energía y enfoque."
+      ],
+      "benefitSource": {
+        "label": "Información del fabricante",
+        "url": "https://insanelabz.com/products/psychotic"
+      },
+      "stock": null
+    },
+    {
+      "id": "creatina-inner",
+      "name": "Creatine Monohydrate",
+      "brand": "Inner Armour",
+      "category": "Creatinas",
+      "flavor": "Sin sabor",
+      "size": "400 g · 133 porciones",
+      "price": 18000,
+      "image": "assets/creatina-inner-makako.webp",
+      "originalImage": "assets/originales/IMG_4436.jpeg",
+      "tag": "CREATINAS",
+      "description": "Creatine Monohydrate de Inner Armour. 400 g · 133 porciones.",
+      "benefits": [
+        "Apoya la fuerza y el rendimiento en esfuerzos breves y repetidos de alta intensidad."
+      ],
+      "benefitSource": {
+        "label": "NIH · Información sobre el ingrediente",
+        "url": "https://ods.od.nih.gov/factsheets/ExerciseAndAthleticPerformance-DatosEnEspanol/"
+      },
+      "stock": null
+    },
+    {
+      "id": "magnesio",
+      "name": "Magnesium Glycinate",
+      "brand": "OstroVit",
+      "category": "Bienestar",
+      "flavor": "Cápsulas · no aplica",
+      "size": "90 cápsulas",
+      "price": 14000,
+      "image": "assets/magnesio-makako.webp",
+      "originalImage": "assets/originales/IMG_4437.jpeg",
+      "tag": "BIENESTAR",
+      "description": "Magnesium Glycinate de OstroVit. 90 cápsulas.",
+      "benefits": [
+        "El magnesio contribuye al funcionamiento normal de músculos y sistema nervioso."
+      ],
+      "benefitSource": {
+        "label": "Información del fabricante",
+        "url": "https://ostrovit.com/en/products/ostrovit-magnesium-glycinate-90-capsules-26641.html"
+      },
+      "stock": null
+    },
+    {
+      "id": "arginina",
+      "name": "L-Arginine",
+      "brand": "NutraBio",
+      "category": "Aminoácidos",
+      "flavor": "Cápsulas · no aplica",
+      "size": "120 cápsulas · 60 porciones",
+      "price": 18000,
+      "image": "assets/arginina-makako.webp",
+      "originalImage": "assets/originales/IMG_4438.jpeg",
+      "tag": "AMINOÁCIDOS",
+      "description": "L-Arginine de NutraBio. 120 cápsulas · 60 porciones.",
+      "benefits": [
+        "Aporta L-arginina, un aminoácido que participa en la formación de proteínas."
+      ],
+      "benefitSource": {
+        "label": "NIH · Información sobre el ingrediente",
+        "url": "https://ods.od.nih.gov/factsheets/ExerciseAndAthleticPerformance-DatosEnEspanol/"
+      },
+      "stock": null
+    },
+    {
+      "id": "cafeina",
+      "name": "Caffeine 200",
+      "brand": "OstroVit",
+      "category": "Energía",
+      "flavor": "Comprimidos · no aplica",
+      "size": "200 comprimidos",
+      "price": 13000,
+      "image": "assets/cafeina-makako.webp",
+      "originalImage": "assets/originales/IMG_4439.jpeg",
+      "tag": "ENERGÍA",
+      "description": "Caffeine 200 de OstroVit. 200 comprimidos.",
+      "benefits": [
+        "La cafeína puede favorecer el estado de alerta y reducir la sensación de fatiga."
+      ],
+      "benefitSource": {
+        "label": "NIH · Información sobre el ingrediente",
+        "url": "https://ods.od.nih.gov/factsheets/ExerciseAndAthleticPerformance-DatosEnEspanol/"
+      },
+      "stock": null
+    },
+    {
+      "id": "essential",
+      "name": "Essential Pre-Workout",
+      "brand": "RAW × CBUM",
+      "category": "Pre entreno",
+      "flavor": "Strawberry Kiwi · frutilla y kiwi",
+      "size": "438,6 g · 30 porciones",
+      "price": 32000,
+      "image": "assets/essential-makako.webp",
+      "originalImage": "assets/originales/IMG_4440.jpeg",
+      "tag": "PRE ENTRENO",
+      "description": "Essential Pre-Workout de RAW × CBUM. 438,6 g · 30 porciones.",
+      "benefits": [
+        "Fórmula para acompañar el entrenamiento, orientada a energía y enfoque."
+      ],
+      "benefitSource": {
+        "label": "Información del fabricante",
+        "url": "https://getrawnutrition.com/products/essential-pre"
+      },
+      "stock": null
+    },
+    {
+      "id": "omega3",
+      "name": "Omega 3",
+      "brand": "Grizzly Bear",
+      "category": "Bienestar",
+      "flavor": "Cápsulas · no aplica",
+      "size": "60 cápsulas",
+      "price": 14000,
+      "image": "assets/omega3-makako.webp",
+      "originalImage": "assets/originales/IMG_4441.jpeg",
+      "tag": "BIENESTAR",
+      "description": "Omega 3 de Grizzly Bear. 60 cápsulas.",
+      "benefits": [
+        "Complementa la alimentación con ácidos grasos omega 3."
+      ],
+      "benefitSource": {
+        "label": "NIH · Información sobre el ingrediente",
+        "url": "https://ods.od.nih.gov/factsheets/Omega3FattyAcids-DatosEnEspanol/"
+      },
+      "stock": null
+    },
+    {
+      "id": "mutant",
+      "name": "Mutant Whey",
+      "brand": "Mutant",
+      "category": "Proteínas",
+      "flavor": "Vainilla · Vanilla Ice Cream",
+      "size": "2,27 kg · 61 porciones",
+      "price": 69990,
+      "image": "assets/mutant-makako.webp",
+      "originalImage": "assets/originales/IMG_4442.jpeg",
+      "tag": "PROTEÍNAS",
+      "description": "Mutant Whey de Mutant. 2,27 kg · 61 porciones.",
+      "benefits": [
+        "Ayuda a completar el aporte diario de proteína.",
+        "Apoya el mantenimiento muscular y la recuperación junto al entrenamiento."
+      ],
+      "benefitSource": {
+        "label": "NIH · Información sobre el ingrediente",
+        "url": "https://ods.od.nih.gov/factsheets/ExerciseAndAthleticPerformance-DatosEnEspanol/"
+      },
+      "stock": null
+    },
+    {
+      "id": "grizzly-whey",
+      "name": "Fit Protein 100% Whey",
+      "brand": "Grizzly Bear",
+      "category": "Proteínas",
+      "flavor": "Vainilla",
+      "size": "2 kg · 60 porciones",
+      "price": 36000,
+      "image": "assets/grizzly-whey-makako.webp",
+      "originalImage": "assets/originales/IMG_4443.jpeg",
+      "tag": "PROTEÍNAS",
+      "description": "Fit Protein 100% Whey de Grizzly Bear. 2 kg · 60 porciones.",
+      "benefits": [
+        "Ayuda a completar el aporte diario de proteína.",
+        "Apoya el mantenimiento muscular y la recuperación junto al entrenamiento."
+      ],
+      "benefitSource": {
+        "label": "NIH · Información sobre el ingrediente",
+        "url": "https://ods.od.nih.gov/factsheets/ExerciseAndAthleticPerformance-DatosEnEspanol/"
+      },
+      "stock": null
+    },
+    {
+      "id": "venom",
+      "name": "Venom Inferno",
+      "brand": "Dragon Pharma",
+      "category": "Pre entreno",
+      "flavor": "Por confirmar",
+      "size": "280 g",
+      "price": 38000,
+      "image": "assets/venom-makako.webp",
+      "originalImage": "assets/originales/IMG_4445.jpeg",
+      "tag": "PRE ENTRENO",
+      "description": "Venom Inferno de Dragon Pharma. 280 g.",
+      "benefits": [
+        "Preentreno con estimulantes, orientado a energía y enfoque."
+      ],
+      "benefitSource": {
+        "label": "Información del fabricante",
+        "url": "https://dragonpharmalabs.com/products/venom-inferno"
+      },
+      "stock": null
+    },
+    {
+      "id": "nitraflex",
+      "name": "Nitraflex Extreme Sport",
+      "brand": "GAT Sport",
+      "category": "Pre entreno",
+      "flavor": "Grape Cotton Candy · uva y algodón de azúcar",
+      "size": "300,2 g · 20 porciones",
+      "price": 23000,
+      "image": "assets/nitraflex-makako.webp",
+      "originalImage": "assets/originales/IMG_4446.jpeg",
+      "tag": "PRE ENTRENO",
+      "description": "Nitraflex Extreme Sport de GAT Sport. 300,2 g · 20 porciones.",
+      "benefits": [
+        "Fórmula para acompañar el entrenamiento, orientada a energía y enfoque."
+      ],
+      "benefitSource": {
+        "label": "Información del fabricante",
+        "url": "https://gatsport.com/products/nitraflex-sport"
+      },
+      "stock": null
+    },
+    {
+      "id": "beast",
+      "name": "Beast Pre Workout",
+      "brand": "4Active",
+      "category": "Pre entreno",
+      "flavor": "Fruit Punch · ponche de frutas",
+      "size": "320 g · 30 porciones",
+      "price": 20000,
+      "image": "assets/beast-makako.webp",
+      "originalImage": "assets/originales/IMG_4447.jpeg",
+      "tag": "PRE ENTRENO",
+      "description": "Beast Pre Workout de 4Active. 320 g · 30 porciones.",
+      "benefits": [
+        "Su cafeína puede contribuir al estado de alerta durante el entrenamiento."
+      ],
+      "benefitSource": {
+        "label": "Información del fabricante",
+        "url": "https://4active.cl/collections/energia-cada-dia"
+      },
+      "stock": null
+    },
+    {
+      "id": "creatina-ultimate",
+      "name": "Micronized Creatine Monohydrate",
+      "brand": "Ultimate Nutrition",
+      "category": "Creatinas",
+      "flavor": "Por confirmar",
+      "size": "300 g",
+      "price": 19000,
+      "image": "assets/creatina-ultimate-makako.webp",
+      "originalImage": "assets/originales/IMG_4448.jpeg",
+      "tag": "CREATINAS",
+      "description": "Micronized Creatine Monohydrate de Ultimate Nutrition. 300 g.",
+      "benefits": [
+        "Apoya la fuerza y el rendimiento en esfuerzos breves y repetidos de alta intensidad."
+      ],
+      "benefitSource": {
+        "label": "NIH · Información sobre el ingrediente",
+        "url": "https://ods.od.nih.gov/factsheets/ExerciseAndAthleticPerformance-DatosEnEspanol/"
+      },
+      "stock": null
+    },
+    {
+      "id": "lipo6-intense",
+      "name": "Lipo 6 Intense Ultra",
+      "image": "assets/lipo6-intense-makako.webp",
+      "description": "Lipo 6 Intense Ultra Concentrate de Nutrex. Presentación de 60 cápsulas, según el envase de la fotografía.",
+      "benefitSource": {
+        "label": "Información del fabricante",
+        "url": "https://nutrex.com/products/lipo-6-intense-uc"
+      },
+      "brand": "Nutrex Research",
+      "category": "Preentreno y cafeína",
+      "flavor": "Cápsulas · no aplica",
+      "size": "60 cápsulas",
+      "price": 25000,
+      "originalImage": "assets/originales/lipo6-original.jpg",
+      "tag": "TERMOGÉNICOS",
+      "stock": null,
+      "benefits": [
+        "Fórmula concentrada de Nutrex en formato de cápsulas.",
+        "Envase de 60 cápsulas. Revisa los ingredientes en la etiqueta original."
+      ]
+    },
+    {
+      "id": "lipo6-black",
+      "name": "Lipo 6 Black Ultra",
+      "image": "assets/lipo6-black-makako.webp",
+      "description": "Lipo 6 Black Ultra Concentrate de Nutrex. Presentación de 60 cápsulas, según el envase de la fotografía.",
+      "benefitSource": {
+        "label": "Información del fabricante",
+        "url": "https://nutrex.com/products/lipo-6-black-ultra-concentrate"
+      },
+      "brand": "Nutrex Research",
+      "category": "Preentreno y cafeína",
+      "flavor": "Cápsulas · no aplica",
+      "size": "60 cápsulas",
+      "price": 25000,
+      "originalImage": "assets/originales/lipo6-original.jpg",
+      "tag": "TERMOGÉNICOS",
+      "stock": null,
+      "benefits": [
+        "Fórmula concentrada de Nutrex en formato de cápsulas.",
+        "Envase de 60 cápsulas. Revisa los ingredientes en la etiqueta original."
+      ]
+    }
+  ]
+}

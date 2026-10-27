@@ -24,16 +24,23 @@ export const ENLACES = {
 // El id del catálogo para un producto: el que se le puso a mano, o el del enlace.
 export const idCatalogo = (p) => p.catalogoId || ENLACES[slug(p.name || '')] || null;
 
-// Lo que el catálogo necesita saber, por id del catálogo: agotado sí/no y la
-// foto. Nada de costos ni de unidades. Se guarda en app_data `macaco:catalogo`.
+// Lo que el catálogo necesita saber, por id del catálogo: agotado sí/no, la
+// foto y el precio de venta (es público). Nada de costos ni de unidades.
+// Se guarda en app_data `macaco:catalogo`.
 export function catalogoPublico(productos) {
   const salida = {};
   (productos || []).forEach(p => {
     const id = idCatalogo(p);
-    if (id) salida[id] = { agotado: (Number(p.stock) || 0) <= 0, imagen: fotoPublica(p.imagen) };
+    if (id) salida[id] = { agotado: (Number(p.stock) || 0) <= 0, imagen: fotoPublica(p.imagen), precio: precioPublico(p.price) };
   });
   return salida;
 }
 
 // Solo URLs públicas: la foto en data: (demo) no sirve fuera del celular.
 export const fotoPublica = (imagen) => (imagen && /^https:\/\//.test(imagen) ? imagen : null);
+
+// Precio en pesos enteros y mayor a cero; si no, el catálogo deja el suyo.
+export const precioPublico = (precio) => {
+  const n = Number(precio);
+  return Number.isInteger(n) && n > 0 ? n : null;
+};

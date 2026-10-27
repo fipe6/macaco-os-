@@ -46,6 +46,8 @@ src/
   theme.js         — design tokens MACACO.* + clp() + clpCompact()
   App.jsx          — router + LoadingDB + DBStatusBadge + version check
 api/db.js          — proxy Vercel serverless → Supabase
+public/catalogo/   — catálogo público Makako Fit (estático) en /catalogo/; lee agotado,
+                     foto y precio de la vista catalogo_publico. Ver docs/CATALOGO-WEB.md
 public/version.json — fuerza recarga si la versión no coincide con APP_VERSION
 ```
 Tests: `npm test` (node --test, todos los `src/**/*.test.js`).
