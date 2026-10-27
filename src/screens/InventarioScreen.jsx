@@ -36,6 +36,7 @@ export default function InventarioScreen({ go }) {
     .filter(i => i.name.toLowerCase().includes(q.toLowerCase()))
     .filter(i => filtro === 'todos' || estado(i) === filtro)
     .sort((a, b) => ORDEN[estado(a)] - ORDEN[estado(b)] || a.name.localeCompare(b.name));
+  const totalCost = productos.reduce((s, i) => s + i.stock * i.cost, 0);
   const totalSale = productos.reduce((s, i) => s + i.stock * i.price, 0);
   const abierto = productos.find(p => p.id === ficha);
 
@@ -145,9 +146,13 @@ export default function InventarioScreen({ go }) {
         {filtered.map(p => <ProductoCard key={p.id} p={p} alerta={alerta} onClick={() => setFicha(p.id)} />)}
       </div>
 
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: MACACO.textDim, padding: '0 4px 6px' }}>
+        <span>Stock a costo</span>
+        <b style={{ color: MACACO.text, fontVariantNumeric: 'tabular-nums' }}>{clp(totalCost)}</b>
+      </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: MACACO.textDim, padding: '0 4px 16px' }}>
-        <span>Stock a precio de venta</span>
-        <b style={{ color: MACACO.text, fontVariantNumeric: 'tabular-nums' }}>{clp(totalSale)}</b>
+        <span>Stock a precio de venta (aprox.)</span>
+        <b style={{ color: MACACO.cyan, fontVariantNumeric: 'tabular-nums' }}>~{clp(totalSale)}</b>
       </div>
 
       <button onClick={() => setShowAdd(true)} style={{
@@ -281,6 +286,7 @@ function ProductoSheet({ p, alerta, onClose, onFoto, onMover, onEditar }) {
 
       <div style={{ fontSize: 24, fontWeight: 400, letterSpacing: '-0.03em', marginTop: 16, lineHeight: 1.15 }}>{p.name}</div>
       <div style={{ display: 'flex', gap: 22, marginTop: 14 }}>
+        <Dato label="Costo" valor={clp(p.cost)} />
         <Dato label="Precio" valor={clp(p.price)} />
         <Dato label="Stock" valor={`${p.stock} u`} color={e.color} />
         {margen != null && <Dato label="Margen" valor={`${margen}%`} />}
