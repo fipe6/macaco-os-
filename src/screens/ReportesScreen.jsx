@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { MACACO, clp, clpCompact } from '../theme.js';
-import { Card, SectionTitle, Progress, Trend, Dot, Icon } from '../components/ui.jsx';
+import { Card, SectionTitle, Progress, Trend, Dot } from '../components/ui.jsx';
 import { Screen } from '../components/Screen.jsx';
 import { useApp } from '../store.jsx';
 import {
@@ -15,20 +15,6 @@ const TABS = ['Diario', 'Semanal', 'Mensual', 'Clientes'];
 export default function ReportesScreen() {
   const { ventas, movimientos, productos, config, gastos } = useApp();
   const [tab,     setTab]     = useState('Mensual');
-  // Arma el resumen y abre WhatsApp con el texto listo para mandar (sin n8n).
-  const enviarWsp = () => {
-    const hoy  = new Date();
-    const totalMes = sumarTotal(ventasDelMes(ventas));
-    const pct = config.metaMensual > 0 ? Math.round((totalMes / config.metaMensual) * 100) : 0;
-    const texto = [
-      `🐒 Macaco · Reporte ${tab.toLowerCase()} — ${hoy.toLocaleDateString('es-CL')}`,
-      `Hoy: ${clp(sumarTotal(ventasDelDia(ventas)))}`,
-      `Últimos 7 días: ${clp(sumarTotal(ventasUltimos7Dias(ventas)))}`,
-      `${MESES[hoy.getMonth()]}: ${clp(totalMes)} (${pct}% de la meta ${clp(config.metaMensual)})`,
-    ].join('\n');
-    window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank');
-  };
-
   return (
     <Screen>
       <div style={{ padding: '6px 0 14px' }}>
@@ -64,17 +50,6 @@ export default function ReportesScreen() {
         {tab === 'Clientes' && <ClientesTab    ventas={ventas} />}
       </div>
 
-      {tab !== 'Clientes' && (
-        <button onClick={enviarWsp} style={{
-          width: '100%', padding: '14px', marginTop: 16,
-          background: '#25D366', color: '#fff', border: 'none', borderRadius: 12,
-          fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-          display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-          boxShadow: '0 0 24px rgba(37,211,102,0.3)',
-        }}>
-          <Icon.whatsapp size={16}/> Enviar reporte a WhatsApp
-        </button>
-      )}
     </Screen>
   );
 }

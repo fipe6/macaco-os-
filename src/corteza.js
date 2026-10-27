@@ -285,7 +285,7 @@ function senalesClientes({ ventas, ahora }) {
       impactoMensual: Math.round(margen),
       riesgo: 'bajo',
       accion: `Escribirle hoy a ${atrasados[0].nombre}${atrasados.length > 1 ? ' y al resto de la lista' : ''}`,
-      artefacto: 'Mensaje de recompra por WhatsApp',
+      artefacto: 'Mensaje de recompra a cada cliente',
       destino: 'reportes',
     }));
   }
