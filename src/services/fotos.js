@@ -4,11 +4,11 @@
 // En la demo la foto queda en el navegador (no toca Supabase).
 import { supabase } from './supabaseAuth.js';
 import { DEMO } from '../demo.js';
+import { slug } from '../domain/texto.js';
 
 const BUCKET = 'product-images';
 
-export const slug = (nombre) => nombre.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
-  .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+export { slug };
 
 // Achica la foto (lado mayor `max` px) y la deja en JPEG liviano.
 export function prepararFoto(archivo, max = 1000, calidad = 0.82) {

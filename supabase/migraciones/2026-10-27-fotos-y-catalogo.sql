@@ -3,17 +3,19 @@
 -- Vuelta atrás al final del archivo.
 
 -- 1) La foto de cada producto (URL pública del bucket product-images).
+--    Hace falta porque el trigger del paso 3 rehace macaco:productos desde inventario.
 alter table public.inventario add column if not exists imagen_url text;
 
--- 2) Lo que el catálogo web puede leer sin login: SIN precio_costo ni margen.
---    Hoy `inventario` solo se puede leer con login (RLS), así que el catálogo,
---    que entra con la clave pública, no ve nada. Esta vista expone solo lo
---    público. (Vista con permisos del dueño: el anon lee la vista, no la tabla.)
+-- 2) Lo que el catálogo web (makako-fit-catalogo) puede leer sin login.
+--    Macaco OS guarda en app_data `macaco:catalogo` solo esto, por id del catálogo:
+--    { "magnesio": { "agotado": true, "imagen": "https://…" }, … }
+--    Sin costos, sin unidades, sin caja. app_data se lee solo con login (RLS);
+--    esta vista deja pasar esa ÚNICA clave (vista con permisos del dueño).
 create or replace view public.catalogo_publico
 with (security_invoker = false) as
-  select id, producto, stock_actual, stock_minimo, precio_venta, imagen_url, activo, updated_at
-  from public.inventario
-  where activo = true;
+  select valor as productos, actualizado_en
+  from public.app_data
+  where clave = 'macaco:catalogo';
 grant select on public.catalogo_publico to anon, authenticated;
 
 -- 3) El trigger que reescribe app_data.macaco:productos desde inventario

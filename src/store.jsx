@@ -13,6 +13,9 @@ import * as ledger from './domain/ledger.js';
 import { calcStatus, nuevoId } from './domain/ledger.js';
 import { crearPersistencia, resolverCarga } from './store/persist.js';
 import { CLAVES, SEMILLAS } from './store/semillas.js';
+import { catalogoPublico } from './domain/catalogoWeb.js';
+
+const CLAVE_CATALOGO = 'macaco:catalogo';
 
 export * from './store/selectors.js';
 export { calcStatus };
@@ -89,6 +92,8 @@ export function AppProvider({ children }) {
       if (k in resto) { parcial[k] = resto[k]; porClave[CLAVES[k]] = resto[k]; }
     });
     if (!Object.keys(parcial).length) return parche;
+    // El catálogo web lee de acá si está agotado y su foto (sin costos).
+    if (parcial.productos) porClave[CLAVE_CATALOGO] = catalogoPublico(parcial.productos);
     setEstado(parcial);
     pushDB(porClave);
     if (cambiaronProductos?.length) pushInv(ref.current.productos.filter(p => cambiaronProductos.includes(p.id)));
@@ -122,6 +127,9 @@ export function AppProvider({ children }) {
           Object.fromEntries(Object.entries(CLAVES).map(([k, c]) => [c, SEMILLAS[k]])));
         desdeClaves(porClave);
         persist.reintentar(); // lo que haya quedado pendiente de la última vez
+        // Deja al catálogo web al día con lo que hay ahora (agotados y fotos).
+        const pub = catalogoPublico(porClave[CLAVES.productos]);
+        if (JSON.stringify(pub) !== JSON.stringify(remoto[CLAVE_CATALOGO])) pushDB({ [CLAVE_CATALOGO]: pub });
         console.log('[db] ✅ datos restaurados desde Supabase');
       } else {
         // Supabase vacío: subir lo que hay en este celular.
