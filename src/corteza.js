@@ -9,6 +9,8 @@
 // toda decisión requiere aprobación humana. Funciones puras, sin React, para
 // poder testearlas con `node --test`.
 
+import { timonel, vigias } from './domain/kairos.js';
+
 const DIA = 86_400_000;
 const VENTANA_DIAS = 30;          // historial máximo usado para velocidad de venta
 const COBERTURA_MIN_DIAS = 7;     // bajo esto, el stock no alcanza a reponerse
@@ -337,6 +339,52 @@ function senalGastos({ gastos, ventas, ahora }) {
   })];
 }
 
+// ── Kairos: Timonel (jugada maestra) y vigías de pico/caída ─────────────────
+function senalesKairos({ productos, ventas, deudas, ahora }) {
+  const out = [];
+  const t = timonel({ productos, ventas, ahora });
+  const tasaMax = Math.max(0, ...deudas.filter(d => d.amt > 0).map(d => d.rate || 0));
+  if (t.jugada) {
+    const j = t.jugada;
+    const fila = t.ranking.find(r => r.id === j.productoId);
+    const costoOp = j.tipo === 'liberar' && tasaMax > 0 ? Math.round(fila.capital * tasaMax / 100) : null;
+    out.push(decision({
+      id: `timonel:${j.tipo}:${j.productoId}`,
+      tipo: 'Timonel',
+      senal: j.titulo,
+      evidencia: j.porque,
+      impactoMensual: costoOp,
+      ahorroMensual: costoOp,
+      roi: fila?.roi != null ? `${Math.round(fila.roi * 100)}% sobre costo en ventas reales` : null,
+      riesgo: j.tipo === 'liberar' ? 'medio' : 'bajo',
+      prioridad: j.tipo === 'liberar' && fila.capital >= 300_000 ? 'alta' : 'media',
+      accion: j.tipo === 'comprar' ? 'Armar el próximo pedido empezando por este producto'
+        : j.tipo === 'liberar' ? 'Pack o promo con este producto y pausar su recompra'
+        : 'Destacarlo en redes y en cada venta esta semana',
+      artefacto: j.tipo === 'comprar' ? 'Pedido a proveedor en Stock' : 'Promo / pack en redes',
+      destino: 'inventario',
+    }));
+  }
+  const v = vigias({ ventas, productos, ahora });
+  if (v && v.tipo !== 'normal') {
+    const semana = new Date(ahora - 3 * DIA).toISOString().slice(0, 10);
+    out.push(decision({
+      id: `vigia:${v.tipo}:${semana}`,
+      tipo: v.tipo === 'pico' ? 'Pico ▲' : 'Caída ▼',
+      senal: v.titulo,
+      evidencia: v.evidencia,
+      // Como la brecha contra la meta: venta que no entró no es ROI recuperable.
+      riesgo: v.tipo === 'caida' ? 'alto' : 'medio',
+      prioridad: v.tipo === 'caida' ? 'alta' : 'media',
+      accion: v.acciones[0],
+      acciones: v.acciones,
+      artefacto: v.tipo === 'caida' ? 'Plan de 3 acciones contra la caída' : 'Plan de 3 acciones para potenciar el pico',
+      destino: 'reportes',
+    }));
+  }
+  return out;
+}
+
 // ── Escaneo completo ─────────────────────────────────────────────────────────
 export function escanearCorteza({
   productos = [], ventas = [], gastos = [], deudas = [], caja = 0,
@@ -353,6 +401,7 @@ export function escanearCorteza({
     ...senalMeta({ ventas, config, ahora: t }),
     ...senalesClientes({ ventas, ahora: t }),
     ...senalGastos({ gastos, ventas, ahora: t }),
+    ...senalesKairos({ productos, ventas, deudas, ahora: t }),
   ];
 
   // Las deudas se mantienen juntas y en su orden de pago (el abono va a la

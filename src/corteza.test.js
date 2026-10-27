@@ -136,3 +136,18 @@ test('las deudas quedan en orden de pago aunque la segunda cobre más interés',
   const r = escanearCorteza({ deudas, caja: 503_000, config: CONFIG, ahora: AHORA });
   assert.deepEqual(ids(r), ['deuda-interes:d1', 'deuda-interes:d2']);
 });
+
+test('Kairos en la corteza: stock parado de sobra → jugada "liberar"; semana floja → caída', () => {
+  const productos = [{ id: 'pg', name: 'Proteína', stock: 60, cost: 20_000, price: 36_000 }];
+  const ventas = [];
+  for (let d = 27; d >= 7; d--) ventas.push(venta(d));
+  ventas.push(venta(2));
+  const deudas = [{ id: 'd1', who: 'B', amt: 500_000, rate: 10 }];
+  const r = escanearCorteza({ productos, ventas, deudas, config: CONFIG, caja: 500_000, ahora: AHORA });
+  const jugada = r.decisiones.find(d => d.id === 'timonel:liberar:pg');
+  assert.ok(jugada, 'propone liberar el stock parado');
+  assert.equal(jugada.ahorroMensual, 120_000);         // $1.200.000 parados al 10% mensual
+  const caida = r.decisiones.find(d => d.id.startsWith('vigia:caida:'));
+  assert.ok(caida);
+  assert.equal(caida.prioridad, 'alta');
+});
