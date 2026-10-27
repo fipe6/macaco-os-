@@ -83,11 +83,10 @@ test('margen bajo propone precio con 30% de margen', () => {
 });
 
 test('caja bajo colchón es prioridad alta', () => {
-  const r = escanearCorteza({ caja: 100_000, config: CONFIG, ahora: AHORA,
-    porCobrar: [{ persona: 'Sarek', saldo: 300_000 }] });
+  const r = escanearCorteza({ caja: 100_000, config: CONFIG, ahora: AHORA });
   const c = r.decisiones.find(d => d.id === 'caja-colchon');
   assert.equal(c.prioridad, 'alta');
-  assert.match(c.accion, /Sarek/);
+  assert.match(c.accion, /colchón/);
 });
 
 test('recompra atrasada detecta clientes fuera de su ciclo', () => {
@@ -105,7 +104,6 @@ test('ordena por prioridad y luego por impacto', () => {
   const r = escanearCorteza({
     caja: 100_000, config: CONFIG, ahora: AHORA,
     deudas: [{ id: 'd1', who: 'B', amt: 500_000, rate: 10 }],
-    porCobrar: [{ persona: 'Mamá', saldo: 8_000 }],
   });
   const orden = r.decisiones.map(d => d.prioridad);
   assert.deepEqual(orden, [...orden].sort((a, b) => ['alta', 'media', 'baja'].indexOf(a) - ['alta', 'media', 'baja'].indexOf(b)));

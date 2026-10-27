@@ -201,19 +201,16 @@ function senalesStock({ productos, vel, config, tasaMax }) {
   return out;
 }
 
-function senalCaja({ caja, config, porCobrar }) {
+function senalCaja({ caja, config }) {
   const colchon = config.colchonMinimo || 0;
   if (!colchon || caja >= colchon) return [];
-  const top = porCobrar.filter(c => c.saldo > 0).sort((a, b) => b.saldo - a.saldo)[0];
   return [decision({
     id: 'caja-colchon',
     tipo: 'Caja',
     senal: `Caja bajo el colchón mínimo`,
     evidencia: [`Caja ${clp(caja)} · colchón ${clp(colchon)} · faltan ${clp(colchon - caja)}`],
     riesgo: 'alto',
-    accion: top
-      ? `Congelar compras no urgentes y cobrar a ${top.persona} (${clp(top.saldo)})`
-      : 'Congelar compras no urgentes hasta recuperar el colchón',
+    accion: 'Congelar compras no urgentes hasta recuperar el colchón',
     artefacto: 'Regla de caja: nada sale bajo el colchón',
     destino: 'finanzas',
   })];
@@ -286,7 +283,7 @@ function senalesClientes({ ventas, ahora }) {
       impactoMensual: Math.round(margen),
       riesgo: 'bajo',
       accion: `Escribirle hoy a ${atrasados[0].nombre}${atrasados.length > 1 ? ' y al resto de la lista' : ''}`,
-      artefacto: 'Automatización n8n: aviso de recompra por WhatsApp',
+      artefacto: 'Mensaje de recompra por WhatsApp',
       destino: 'reportes',
     }));
   }
@@ -341,10 +338,9 @@ function senalGastos({ gastos, ventas, ahora }) {
 }
 
 // ── Escaneo completo ─────────────────────────────────────────────────────────
-// `porCobrar` (opcional) viene con `saldo` ya calculado.
 export function escanearCorteza({
   productos = [], ventas = [], gastos = [], deudas = [], caja = 0,
-  config = {}, porCobrar = [], ahora = Date.now(),
+  config = {}, ahora = Date.now(),
 } = {}) {
   const t = typeof ahora === 'number' ? ahora : new Date(ahora).getTime();
   const vel = velocidades(ventas, t);
@@ -352,7 +348,7 @@ export function escanearCorteza({
 
   const brutas = [
     ...senalesDeuda({ deudas, caja, config }),
-    ...senalCaja({ caja, config, porCobrar }),
+    ...senalCaja({ caja, config }),
     ...senalesStock({ productos, vel, config, tasaMax }),
     ...senalMeta({ ventas, config, ahora: t }),
     ...senalesClientes({ ventas, ahora: t }),
@@ -374,7 +370,7 @@ export function escanearCorteza({
     fecha: new Date(t).toISOString(),
     fuentes: {
       ventas: ventas.length, productos: productos.length, gastos: gastos.length,
-      deudas: deudas.length, porCobrar: porCobrar.length,
+      deudas: deudas.length,
       diasHistorial: Math.floor(vel.diasHistorial),
     },
     decisiones,

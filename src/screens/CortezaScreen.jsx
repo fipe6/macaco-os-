@@ -14,7 +14,7 @@ const PRIORIDAD = {
 const RIESGO = { alto: MACACO.danger, medio: MACACO.orange, bajo: MACACO.success };
 
 const DESTINOS = {
-  finanzas: 'Finanzas', personal: 'Personal', inventario: 'Stock',
+  finanzas: 'Finanzas', inventario: 'Stock',
   reportes: 'Reportes', venta: 'Venta',
 };
 
