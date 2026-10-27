@@ -8,12 +8,13 @@
 // nunca se usa. Ese caracter invisible rompe cualquier header armado en el
 // navegador con un "String contains non ISO-8859-1 code point".
 import { createClient } from '@supabase/supabase-js';
+import { DEMO, clienteDemo } from '../demo.js';
 
 const SUPA_URL = 'https://jmvbdjahitdhbvrfblnh.supabase.co';
 
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImptdmJkamFoaXRkaGJ2cmZibG5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxODU2ODksImV4cCI6MjA5NTc2MTY4OX0.6q_M4V6y53sUEr-20MzkSOTZTLL5nthwLLFLPhCsi8o';
 
-export const supabase = createClient(SUPA_URL, SUPA_KEY, {
+export const supabase = DEMO ? clienteDemo() : createClient(SUPA_URL, SUPA_KEY, {
   auth: { persistSession: true, autoRefreshToken: true },
 });
 

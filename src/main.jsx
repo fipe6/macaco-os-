@@ -6,6 +6,20 @@ import { AuthProvider, useAuth } from './AuthProvider.jsx';
 import { IOSDevice } from './components/IOSDevice.jsx';
 import LoginScreen from './screens/LoginScreen.jsx';
 import './styles.css';
+import { DEMO } from './demo.js';
+
+// En la demo (página de revisión) el visor no muestra confirm()/alert():
+// se confirma solo y los avisos salen como un aviso flotante.
+if (DEMO) {
+  window.confirm = () => true;
+  window.alert = (msg) => {
+    const d = document.createElement('div');
+    d.textContent = String(msg);
+    d.style.cssText = 'position:fixed;left:16px;right:16px;bottom:110px;z-index:9999;padding:12px 14px;border-radius:12px;background:#FF4D4D;color:#fff;font:600 13px Inter,system-ui,sans-serif;text-align:center';
+    document.body.appendChild(d);
+    setTimeout(() => d.remove(), 3500);
+  };
+}
 
 function Gate() {
   const { session } = useAuth();

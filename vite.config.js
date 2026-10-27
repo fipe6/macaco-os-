@@ -2,10 +2,11 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
+  // `--mode demo`: página de revisión autocontenida, sin service worker.
   plugins: [
     react(),
-    VitePWA({
+    mode !== 'demo' && VitePWA({
       // selfDestroying: desregistra el SW viejo y borra todos los caches en el celular.
       // Permite que siempre cargue código fresco del servidor.
       // El manifest sigue funcionando para "Añadir a pantalla de inicio".
@@ -30,4 +31,4 @@ export default defineConfig({
     port: 3000,
     open: true
   }
-});
+}));

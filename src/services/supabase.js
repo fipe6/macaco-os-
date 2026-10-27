@@ -7,6 +7,7 @@
 // la anon key — sin sesión, Supabase rechaza la lectura/escritura.
 
 import { getAccessToken } from './supabaseAuth.js';
+import { DEMO, demoDB } from '../demo.js';
 
 // Hardcodeado a propósito, no leído de import.meta.env — ver nota en
 // supabaseAuth.js sobre el BOM que Vercel mete en env vars.
@@ -101,6 +102,7 @@ async function directUpsert(table, rows, onConflict = 'clave') {
 
 // ── API pública: proxy primero, fallback directo ──────────────────────────────
 export async function selectAll(table) {
+  if (DEMO) return demoDB.selectAll();
   try {
     return await proxySelect(table);
   } catch (proxyErr) {
@@ -112,6 +114,7 @@ export async function selectAll(table) {
 // Lee solo algunas claves de app_data → { clave: valor }.
 export async function selectClaves(claves) {
   if (!claves.length) return {};
+  if (DEMO) return demoDB.selectClaves(claves);
   const lista = claves.map(c => `"${c.replace(/"/g, '')}"`).join(',');
   const query = `select=clave,valor&clave=in.(${encodeURIComponent(lista)})`;
   let filas;
@@ -125,6 +128,7 @@ export async function selectClaves(claves) {
 }
 
 export async function upsertRows(table, rows, onConflict = 'clave') {
+  if (DEMO) return table === 'app_data' ? demoDB.upsertRows(rows) : true; // catálogo público: no en demo
   try {
     return await proxyUpsert(table, rows, onConflict);
   } catch (proxyErr) {

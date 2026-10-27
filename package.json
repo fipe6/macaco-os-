@@ -9,7 +9,8 @@
     "dev": "vite --host",
     "build": "vite build",
     "preview": "vite preview --host",
-    "test": "node --test 'src/**/*.test.js'"
+    "test": "node --test 'src/**/*.test.js'",
+    "build:demo": "vite build --mode demo --outDir dist-demo"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.107.0",

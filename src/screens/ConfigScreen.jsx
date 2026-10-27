@@ -4,6 +4,7 @@ import { Card, SectionTitle, Dot, Icon } from '../components/ui.jsx';
 import { Screen } from '../components/Screen.jsx';
 import { useApp } from '../store.jsx';
 import { useAuth } from '../AuthProvider.jsx';
+import { DEMO, reiniciarDemo } from '../demo.js';
 
 export default function ConfigScreen() {
   const { config, setConfig, caja, ajustarCaja, sync, reintentarSync } = useApp();
@@ -120,6 +121,17 @@ export default function ConfigScreen() {
           opacity: reintentando ? 0.7 : 1,
         }}>
           <Icon.refresh size={14}/> {reintentando ? 'Enviando...' : 'Enviar ahora'}
+        </button>
+      )}
+
+      {DEMO && (
+        <button onClick={reiniciarDemo} style={{
+          width: '100%', padding: '13px', marginTop: 10,
+          background: 'transparent', border: `1px dashed ${MACACO.primary}`,
+          color: MACACO.primary, borderRadius: 12,
+          fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+        }}>
+          Reiniciar demo (volver a la copia original)
         </button>
       )}
 

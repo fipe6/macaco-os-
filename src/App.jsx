@@ -13,6 +13,7 @@ import GastoScreen from './screens/GastoScreen.jsx';
 import CortezaScreen from './screens/CortezaScreen.jsx';
 import { DB_HABILITADO } from './services/supabase.js';
 import { useApp } from './store.jsx';
+import { DEMO } from './demo.js';
 
 function LoadingDB() {
   const [seg, setSeg] = useState(0);
@@ -133,6 +134,7 @@ function AppInner() {
   // Verificación de versión — fuerza recarga si hay versión nueva en el servidor.
   // Funciona aunque el service worker sirva código viejo.
   useEffect(() => {
+    if (DEMO) return; // la demo no tiene version.json
     const checkVersion = async () => {
       try {
         const res = await fetch(`/version.json?t=${Date.now()}`, { cache: 'no-store' });

@@ -7,6 +7,7 @@ import { ventasDelDia, ventasDelMes, getDiasDelMes, sumarTotal, sumarMargen, MES
 import { escanearCorteza } from '../corteza.js';
 import { saludNegocio, telemetria, vigias, timonel } from '../domain/kairos.js';
 import { Cabina } from '../components/Cabina.jsx';
+import { DEMO } from '../demo.js';
 
 export default function HomeScreen({ go }) {
   const { ventas, productos, deudas, caja, config, gastos, corteza, sync } = useApp();
@@ -85,7 +86,7 @@ export default function HomeScreen({ go }) {
     <Screen>
       <GreetingHeader
         title="Macaco OS"
-        subtitle={saludo}
+        subtitle={DEMO ? `${saludo} · demo de revisión` : saludo}
         right={
           <>
             <div style={{ fontSize: 12, color: MACACO.textMuted, fontWeight: 500 }}>{fechaStr}</div>
