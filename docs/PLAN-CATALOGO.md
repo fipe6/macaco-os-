@@ -36,7 +36,9 @@ stock ni ventas de ahí sin que Felipe lo confirme.
    no se vea nada privado. Recién ahí cambiar enlaces (Instagram, bio) al nuevo catálogo.
 6. No apagar makako-fit-catalogo.vercel.app hasta que Felipe confirme el nuevo.
 
+## Decidido por Felipe
+- Dirección: **`macaco-os.vercel.app/catalogo`** (todo en un solo proyecto, el de Macaco OS).
+
 ## Falta de Felipe
-- ¿Dirección final? `macaco-os.vercel.app/catalogo` o un proyecto Vercel aparte.
 - Subir el zip completo (`Makako-catalogo-codigo-y-guia.zip`) si se quiere la fuente de
   Sites v38; para el catálogo estático basta el sitio publicado + makako-control.
