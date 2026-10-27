@@ -26,7 +26,7 @@ Están en `ENLACES` de `src/domain/catalogoWeb.js`. Sin enlace, el catálogo no 
 | Glicinato de Magnesio | magnesio |
 | Arginina | arginina |
 | Cafeína ostrovit | cafeina |
-| Omega 3 | omega3 (¿o es "Omega 3 grizzly bear"? confirmar) |
+| Omega 3 grizzly bear | omega3 (el del catálogo es Grizzly Bear) |
 | Proteína Mutant | mutant |
 | Proteína grizzly | grizzly-whey |
 | Venom inferno | venom |
@@ -35,7 +35,7 @@ Están en `ENLACES` de `src/domain/catalogoWeb.js`. Sin enlace, el catálogo no 
 
 Sin pareja (quedan como están): en el catálogo `pump`, `thavage`, `essential`,
 `creatina-ultimate`, `lipo6-intense`, `lipo6-black`; en Macaco OS Creatina RAW 500gr,
-Crema de arroz, Dragón pharma, Glutamina, Omega 3 grizzly bear, Pre CBUM, Pre Hyde.
+Crema de arroz, Dragón pharma, Glutamina, Omega 3 (la otra marca), Pre CBUM, Pre Hyde.
 
 ## Cambio en `app.js` del catálogo
 Justo después de `config = data;products = data.products;` (dentro del `Promise.all`):

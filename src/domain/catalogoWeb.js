@@ -13,7 +13,7 @@ export const ENLACES = {
   'glicinato-de-magnesio': 'magnesio',
   'arginina': 'arginina',
   'cafeina-ostrovit': 'cafeina',
-  'omega-3': 'omega3',
+  'omega-3-grizzly-bear': 'omega3',   // el del catálogo es Grizzly Bear; el otro Omega 3 no está en el catálogo
   'proteina-mutant': 'mutant',
   'proteina-grizzly': 'grizzly-whey',
   'venom-inferno': 'venom',
