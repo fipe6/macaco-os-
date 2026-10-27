@@ -22,6 +22,10 @@ export const MACACO = {
   // Gráficos: tonos de la marca bajados al rango legible sobre fondo oscuro
   // (validados para daltonismo con el validador de dataviz). Ventas y ganancia
   // van juntas en un gráfico; gastos va solo.
+  // Portada del cerebro
+  lavanda: '#9984D8',
+  verde:   '#3FCB7F',
+  ambar:   '#ffb829',
   serieVentas:   '#1E9DC2',
   serieGanancia: '#B58A10',
   serieGastos:   '#D0663A',
