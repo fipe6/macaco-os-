@@ -2,16 +2,18 @@ import { useState } from 'react';
 import { MACACO } from '../theme.js';
 import { Icon } from '../components/ui.jsx';
 import { useAuth } from '../AuthProvider.jsx';
+import { DEMO } from '../demo.js';
 
 export default function LoginScreen() {
   const { signIn, authError } = useAuth();
+  const [usuario, setUsuario]   = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading]   = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    await signIn(password);
+    await signIn(usuario, password);
     setLoading(false);
   };
 
@@ -25,13 +27,28 @@ export default function LoginScreen() {
       <div style={{ textAlign: 'center' }}>
         <div style={{ fontSize: 22, fontWeight: 800, color: '#fff' }}>Macaco OS</div>
         <div style={{ fontSize: 12.5, color: MACACO.textMuted, marginTop: 4 }}>
-          Ingresa la contraseña
+          Gestión Macaco Suplementos
         </div>
+        {DEMO && (
+          <div style={{ fontSize: 11.5, color: MACACO.primary, marginTop: 10, lineHeight: 1.45 }}>
+            Demo de revisión: usuario <b>macaco</b> y cualquier contraseña.<br />No toca los datos reales.
+          </div>
+        )}
       </div>
 
       <form onSubmit={handleSubmit} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }}>
         <input
-          type="password" placeholder="Contraseña" value={password} autoFocus
+          type="text" placeholder="Usuario" value={usuario} autoFocus
+          autoCapitalize="none" autoCorrect="off" autoComplete="username"
+          onChange={e => setUsuario(e.target.value)} style={{
+            width: '100%', boxSizing: 'border-box',
+            background: MACACO.cardElev, border: `1px solid ${MACACO.border}`,
+            borderRadius: 10, padding: '13px 14px', color: '#fff',
+            fontSize: 15, outline: 'none', fontFamily: 'inherit',
+          }} required
+        />
+        <input
+          type="password" placeholder="Contraseña" value={password} autoComplete="current-password"
           onChange={e => setPassword(e.target.value)} style={{
             width: '100%', boxSizing: 'border-box',
             background: MACACO.cardElev, border: `1px solid ${MACACO.border}`,
@@ -42,7 +59,7 @@ export default function LoginScreen() {
 
         {authError && (
           <div style={{ fontSize: 12, color: MACACO.danger, textAlign: 'center' }}>
-            {authError === 'Invalid login credentials' ? 'Contraseña incorrecta.' : authError}
+            {authError === 'Invalid login credentials' ? 'Usuario o contraseña incorrectos.' : authError}
           </div>
         )}
 
