@@ -2,77 +2,77 @@
 
 ## Qué es esto
 App de gestión interna para Macaco Suplementos (tienda de suplementos deportivos, Chile).
-Dueño: Felipe. Stack: React 18 + Vite (sin librerías UI externas).
+Dueño: Felipe (la usa junto a su papá con UNA sola cuenta compartida).
+Stack: React 18 + Vite (sin librerías UI externas).
 Deploy: https://macaco-os.vercel.app | Repo: https://github.com/fipe6/macaco-os-
+Rama `v2` = versión 2.0 en preparación (preview en Vercel); `main` = producción.
 
 ## Backend y persistencia
-- **Supabase** (fuente de verdad): Project `jmvbdjahitdhbvrfblnh`, tabla `app_data` (key-value jsonb, RLS OFF)
-- **Proxy Vercel**: `POST /api/db` → reenvía requests a Supabase server-side (evita restricciones iOS Safari)
-- **localStorage**: cache rápido local, backup si Supabase falla
-- **Flujo write**: acción usuario → setState → pushDB() → proxy /api/db → Supabase
-- **Flujo read**: app abre → cargando spinner → proxy /api/db → si tiene productos reales carga de Supabase, si no sube localStorage a Supabase
+- **Supabase** (fuente de verdad): project `jmvbdjahitdhbvrfblnh`, tabla `app_data`
+  (key-value jsonb, RLS activo: las requests llevan el JWT de la sesión).
+- **Proxy Vercel**: `POST /api/db` → reenvía a Supabase server-side (evita restricciones de iOS Safari).
+- **Guardado confiable** (`src/store/persist.js`): cada cambio se escribe primero en el
+  celular (localStorage) y su clave queda PENDIENTE (`macaco:pendientes`). La bandeja envía
+  todas las claves pendientes en UN upsert y solo las desmarca cuando Supabase confirma.
+  Reintenta con espera creciente, al volver la señal, al volver a la app y al abrirla.
+- **Dos celulares** (`src/store/fusion.js`): antes de enviar se lee Supabase y se fusiona en
+  tres vías contra `macaco:base:<clave>` (lo último confirmado). Listas por `id`; caja y
+  stock por diferencia. Así una venta hecha sin señal no pisa la del otro celular.
+- **Flujo write**: acción → `ledger` calcula el parche → `commit()` → setState + `pushDB()`
+  → bandeja → proxy → Supabase. **Flujo read**: al abrir, lo pendiente local se fusiona con
+  Supabase; lo no pendiente se toma de Supabase (si no hay productos en Supabase, se sube lo local).
+- Realtime de Supabase refleja lo que registra el otro celular.
 
 ## Estructura del proyecto
 ```
 src/
-  screens/         — HomeScreen, VentaScreen, GastoScreen, FinanzasScreen,
-                     PersonalScreen, InventarioScreen, ReportesScreen, ConfigScreen
-  components/      — BottomNav, IOSDevice, Screen, ui (Card, Icon, etc.)
-  services/        — webhook.js (n8n, fire-and-forget)
-                     supabase.js (proxy + fetch directo como fallback)
-  corteza.js       — motor de la Corteza Prefrontal (funciones puras, tests con `npm test`)
+  domain/
+    ledger.js      — reglas de plata y stock PURAS: venta/pack, cancelar, ajuste de
+                     stock, gastos, compras, deudas, pedidos (todo o nada, con tests)
+    kairos.js      — Timonel (jugada maestra), vigías de pico/caída, salud 0–100
+  store/
+    persist.js     — bandeja de salida + carga  ·  fusion.js — fusión de tres vías
+    selectors.js   — cálculos de lectura (KPIs, reportes, reposición, meses)
+    semillas.js    — CLAVES de app_data y datos iniciales
+  store.jsx        — provider: junta ledger + persist; exporta useApp() y los selectores
+  corteza.js       — motor de la Corteza Prefrontal (incluye señales de Kairos)
+  screens/         — Home, Venta, Gasto, Finanzas, Inventario (+PedidosTab),
+                     Reportes, Corteza, Config, Login
+  components/      — BottomNav, IOSDevice, Screen, Cabina, ui (Card, Icon, …)
+  services/        — supabase.js (proxy + fetch directo de respaldo),
+                     supabaseAuth.js (Auth + Realtime)
   theme.js         — design tokens MACACO.* + clp() + clpCompact()
-  App.jsx          — router + LoadingDB spinner + DBStatusBadge + version check
-  store.jsx        — estado global, pushDB() en cada acción, selectAll/upsertRows
-api/
-  db.js            — proxy Vercel serverless → Supabase (sin CORS issues en iOS)
-public/
-  version.json     — {"v":"1780517844"} — fuerza recarga si versión no coincide
+  App.jsx          — router + LoadingDB + DBStatusBadge + version check
+api/db.js          — proxy Vercel serverless → Supabase
+public/version.json — fuerza recarga si la versión no coincide con APP_VERSION
 ```
+Tests: `npm test` (node --test, todos los `src/**/*.test.js`).
 
-## Estado actual (2026-09-22)
-- Fases 1 y 2 completas: KPIs reales, métricas avanzadas, módulo clientes
-- **Módulo Gastos completo**: GastoScreen, sección en Finanzas, ganancia neta en Reportes
-- **Módulo Finanzas Personales completo** (`PersonalScreen`, se entra desde Finanzas):
-  balance general con patrimonio neto, cuentas por cobrar, pasivos con tramos de
-  interés, metas de ahorro y proyección mes a mes
-- **Corteza Prefrontal** (`CortezaScreen`, se entra desde Home): Radar + ROI + Skill Miner
-  sobre datos reales (deudas, stock, caja, meta, cobros, clientes, gastos). Cola de
-  decisiones priorizada; aprobar/descartar se guarda en `macaco:corteza` vía pushDB.
-  No ejecuta acciones ni muestra datos de ejemplo — sin historial no hay señal.
-- **Persistencia Supabase vía proxy** implementada y verificada
-- selfDestroying SW activo: mata cache viejo en celular al actualizar
-- Version check: /version.json detecta actualizaciones aunque SW esté cacheado
+## Estado actual (v2, 2026-10-27)
+- **Guardado confiable**: venta o pack = ventas + stock + caja + movimientos en un envío.
+  Cancelar venta deja movimiento `anulacion`. Indicador "Guardado / N por enviar".
+- **n8n eliminado**: no recibía nada útil. El reporte de WhatsApp se arma en la app (wa.me).
+- **Finanzas personales eliminadas** (Felipe las maneja aparte). No reintroducir.
+- **Login de una entrada**: solo contraseña de la cuenta del negocio.
+- **Corteza Prefrontal** (se entra desde Home): Radar + ROI + Skill Miner sobre datos reales.
+  Cola priorizada; aprobar/descartar se guarda en `macaco:corteza`. No ejecuta nada.
+- **Kairos** (ideas de la suite Kairos llevadas a la tienda): panel Cabina en Home (salud
+  /100, telemetría 30 días, vigía, jugada maestra) y Timonel en Corteza. Regla: FUENTE O
+  SILENCIO — sin historial suficiente no hay cifra.
+- selfDestroying SW activo; version check con /version.json.
 
-## Finanzas personales (plan sep 2026)
-- Activos: Banco $453.000 · Reserva Valcarce $1.000.000 (intocable) · Capital creatina $500.000
-- Por cobrar: Sarek $300k, Nass $111k, Fabián $44k, Mamá $8k, Valcarce $25k
-- Pasivo Valcarce: capital $2.000.000 + tramos oct 10% / nov 5% / dic 5% = $2.400.000, vence 31-01-2027
-- Pasivo Mamá: $2.075.000, abono $100.000/mes ($48.000 beca del Estado + $52.000 propio)
-
-### Reglas de cálculo (no cambiar sin recalcular)
-- **Tramos de interés**: tasa fija por mes sobre el CAPITAL, no compuesta.
-  `saldoPasivo` = capital + interés de todos los tramos − pagos (compromiso a vencimiento).
-  `saldoPasivoHoy` = capital + solo el interés ya corrido − pagos.
-- **Aporte externo** (beca): baja el pasivo pero NO cuenta como gasto personal propio.
-- **Fondos reservados** (`reservado: true`): no se mezclan con caja operativa.
-- **Proyección**: parte de `netoHoy`/`pasivosHoy` y devenga el interés mes a mes —
-  partir del compromiso total lo contaría dos veces. Pagar deuda con plata propia es
-  neutro al patrimonio; lo mueven el flujo del mes, el aporte externo y el interés.
-- El inventario del balance se calcula en vivo desde `productos` (stock × costo).
-
-## Datos reales del negocio
-- Deudas con interés: Benjamín $500k + Valcárce $700k (10%/mes c/u)
-- Meta mensual: $10.000.000 | Meta diaria: $700.000
-- Stock mínimo alerta: 3 unidades | Colchón mínimo caja: $300.000
-- Gastos negocio fijos: ~$273.000/mes (Internet WOM, Meta, ChatGPT, Claude, Spotify, etc.)
+## Datos del negocio (viven en `macaco:config`, se editan en Sistema)
+- Meta mensual $2.100.000 · meta diaria $70.000 · colchón de caja $200.000 · alerta de stock 3 u
+- Deudas: una deuda inicial sin interés (~$1,9M)
+- Gastos fijos del negocio: Internet WOM, Meta Verified, ChatGPT, Claude, Spotify, auspicios, sueldo
 
 ## Reglas de desarrollo (NO ignorar)
-
 1. **No introducir dependencias nuevas** sin preguntarle a Felipe.
 2. **No romper diseño visual** — inline styles con tokens de `theme.js`.
-3. **Credenciales Supabase hardcodeadas** en `supabase.js` y `api/db.js` como fallback (anon key es pública por diseño).
-4. **Toda escritura de datos pasa por pushDB()** que llama upsertRows() → proxy → Supabase.
-5. **Los webhooks a n8n son fire-and-forget** — la queue offline existe en `webhook.js`.
-6. **Publicar Catálogo** escribe a tabla `inventario` en Supabase via proxy (no pasa por n8n).
-7. **Al cambiar version.json, actualizar también APP_VERSION** en `App.jsx` con el mismo valor.
+3. **Credenciales Supabase hardcodeadas** en `supabase.js`, `supabaseAuth.js` y `api/db.js`
+   (anon key es pública por diseño; ver nota del BOM en `supabaseAuth.js`).
+4. **Toda escritura de datos pasa por `pushDB()`** (vía `commit()` en `store.jsx`).
+   Reglas de plata nuevas van en `domain/ledger.js` con su test.
+5. **Publicar Catálogo** escribe a la tabla `inventario` (`publicarCatalogo` en `supabase.js`).
+6. **Al cambiar version.json, actualizar también APP_VERSION** en `App.jsx` con el mismo valor.
+7. **Nunca borrar ni sobrescribir datos en Supabase** sin mostrarle antes a Felipe qué se toca.

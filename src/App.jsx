@@ -122,7 +122,7 @@ function DBStatusBadge({ error, sync, onReintentar }) {
   );
 }
 
-const APP_VERSION = '1793118811';
+const APP_VERSION = '1793119414';
 
 function AppInner() {
   const [screen, setScreen]           = useState('home');
