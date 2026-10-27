@@ -3,6 +3,7 @@ import { MACACO, clp, clpCompact } from '../theme.js';
 import { Card, SectionTitle, Progress, Dot, Icon } from '../components/ui.jsx';
 import { Screen } from '../components/Screen.jsx';
 import { CerebroArea } from '../components/CerebroArea.jsx';
+import { Asesores } from '../components/Asesores.jsx';
 import { useApp } from '../store.jsx';
 import { gastosDelMes, MESES } from '../store.jsx';
 import { resultadoMes, historico, gastosPorCategoria, acumuladoMes, puntoEquilibrio, diasDeCaja } from '../domain/finanzas.js';
@@ -64,6 +65,7 @@ export default function FinanzasScreen({ go }) {
       </div>
 
       <CerebroArea areas={['finanzas']} go={go} />
+      <Asesores area="finanzas" titulo="Asesores de Finanzas" />
 
       {/* Caja */}
       <Card style={{ marginBottom: 14 }} padding={18}>

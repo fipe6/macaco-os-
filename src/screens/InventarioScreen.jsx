@@ -3,6 +3,7 @@ import { MACACO, clp, clpCompact } from '../theme.js';
 import { Card, SectionTitle, Dot, Icon } from '../components/ui.jsx';
 import { Screen } from '../components/Screen.jsx';
 import { CerebroArea } from '../components/CerebroArea.jsx';
+import { Asesores } from '../components/Asesores.jsx';
 import { publicarCatalogo } from '../services/supabase.js';
 import { useApp } from '../store.jsx';
 import PedidosTab from './PedidosTab.jsx';
@@ -73,6 +74,7 @@ export default function InventarioScreen({ go }) {
       </div>
 
       <CerebroArea areas={['stock', 'catalogo']} go={go} />
+      <Asesores ids={['productos', 'comercio-online']} titulo="Asesores de Productos y Catálogo" />
 
       <div style={{
         display: 'flex', background: MACACO.card,

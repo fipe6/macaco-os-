@@ -8,6 +8,8 @@ import { escanearCorteza } from '../corteza.js';
 import { saludNegocio, telemetria, vigias, timonel } from '../domain/kairos.js';
 import { Cabina } from '../components/Cabina.jsx';
 import { DEMO } from '../demo.js';
+import { Asesores } from '../components/Asesores.jsx';
+import { ASESORES } from '../asesores/asesores.js';
 
 export default function HomeScreen({ go }) {
   const { ventas, productos, deudas, caja, config, gastos, corteza, sync } = useApp();
@@ -98,6 +100,12 @@ export default function HomeScreen({ go }) {
       />
 
       <Cabina {...kairos} pendientes={cortezaPendientes.length} altas={cortezaAltas} go={go} />
+
+      <Asesores ids={['jefe-gabinete', 'contador', 'abogado', 'marketing']} titulo="Tu equipo" />
+      <button onClick={() => go('equipo')} style={{
+        width: '100%', margin: '-6px 0 16px', padding: '10px', background: 'transparent', border: `1px dashed ${MACACO.border}`,
+        borderRadius: 12, color: MACACO.textDim, fontFamily: 'inherit', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+      }}>Ver los {ASESORES.length} asesores</button>
 
       {/* KPI cards */}
       <div style={{

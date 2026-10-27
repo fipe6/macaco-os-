@@ -11,6 +11,7 @@ import ReportesScreen from './screens/ReportesScreen.jsx';
 import ConfigScreen from './screens/ConfigScreen.jsx';
 import GastoScreen from './screens/GastoScreen.jsx';
 import CortezaScreen from './screens/CortezaScreen.jsx';
+import EquipoScreen from './screens/EquipoScreen.jsx';
 import { DB_HABILITADO } from './services/supabase.js';
 import { useApp } from './store.jsx';
 import { DEMO } from './demo.js';
@@ -183,6 +184,7 @@ function AppInner() {
     gasto:      <GastoScreen go={go} />,
     finanzas:   <FinanzasScreen go={go} />,
     corteza:    <CortezaScreen go={go} areaInicial={areaCorteza} />,
+    equipo:     <EquipoScreen go={go} />,
     inventario: <InventarioScreen go={go} />,
     reportes:   <ReportesScreen go={go} />,
     config:     <ConfigScreen go={go} />,
