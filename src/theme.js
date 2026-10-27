@@ -19,6 +19,13 @@ export const MACACO = {
   text: '#FFFFFF',
   textDim: 'rgba(255,255,255,0.6)',
   textMuted: 'rgba(255,255,255,0.38)',
+  // Gráficos: tonos de la marca bajados al rango legible sobre fondo oscuro
+  // (validados para daltonismo con el validador de dataviz). Ventas y ganancia
+  // van juntas en un gráfico; gastos va solo.
+  serieVentas:   '#1E9DC2',
+  serieGanancia: '#B58A10',
+  serieGastos:   '#D0663A',
+  serieNeutra:   'rgba(255,255,255,0.22)',
 };
 
 export const clp = (n) => {

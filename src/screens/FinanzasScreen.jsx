@@ -1,11 +1,13 @@
-import { useState } from 'react';
-import { MACACO, clp } from '../theme.js';
+import { useMemo, useState } from 'react';
+import { MACACO, clp, clpCompact } from '../theme.js';
 import { Card, SectionTitle, Progress, Dot, Icon } from '../components/ui.jsx';
 import { Screen } from '../components/Screen.jsx';
 import { useApp } from '../store.jsx';
-import { gastosDelMes, sumarGastos, MESES, ventasDelMes, sumarTotal } from '../store.jsx';
+import { gastosDelMes, MESES } from '../store.jsx';
+import { resultadoMes, historico, gastosPorCategoria, acumuladoMes, puntoEquilibrio, diasDeCaja } from '../domain/finanzas.js';
+import { NumeroAnimado, Cascada, BarrasMeses, BarrasCategorias, LineasAcumuladas, Leyenda } from '../components/graficos.jsx';
 
-const ALERTA_GASTOS_NEGOCIO = 273_000;
+const rotulo = { fontSize: 11, color: MACACO.textDim, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase' };
 
 export default function FinanzasScreen({ go }) {
   const { deudas, caja, config, gastos, ventas, pagarDeuda, ajustarCaja, agregarDeuda, editarDeuda, eliminarDeuda } = useApp();
@@ -13,246 +15,175 @@ export default function FinanzasScreen({ go }) {
   const [ajusteCaja, setAjusteCaja] = useState(false);
   const [deudaSheet, setDeudaSheet] = useState(null); // null | 'new' | deuda
   const [gastosExpanded, setGastosExpanded] = useState(false);
+  const [mesElegido, setMesElegido] = useState(5);
 
-  const totalDebt       = deudas.reduce((s, d) => s + d.amt, 0);
+  const hoy       = new Date();
+  const mesNombre = MESES[hoy.getMonth()];
+  const totalDebt = deudas.reduce((s, d) => s + d.amt, 0);
   const deudaConInteres = deudas.filter(d => d.rate > 0);
   const interesTotal    = deudaConInteres.reduce((s, d) => s + d.amt * d.rate / 100, 0);
-  const pctCaja         = Math.max(0, Math.min(100, (caja / 800_000) * 100));
-  const cajaSalud       = caja >= 600_000 ? 'Saludable' : caja >= config.colchonMinimo ? 'OK' : 'Crítica';
-  const cajaSaludColor  = caja >= 600_000 ? MACACO.success : caja >= config.colchonMinimo ? MACACO.primary : MACACO.danger;
 
-  // Gastos del mes actual y anterior
-  const hoy             = new Date();
-  const fechaAnt        = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
-  const gMes            = gastosDelMes(gastos, hoy);
-  const gMesAnt         = gastosDelMes(gastos, fechaAnt);
-  const totalNegocio    = sumarGastos(gMes.filter(g => g.tipo === 'negocio'));
-  const totalInventario = sumarGastos(gMes.filter(g => g.tipo === 'inventario'));
-  const totalGastosMes  = totalNegocio + totalInventario;
-  const ventasMes       = sumarTotal(ventasDelMes(ventas, hoy));
-  const flujoMes        = ventasMes - totalGastosMes;
-  const totalNegocioAnt = sumarGastos(gMesAnt.filter(g => g.tipo === 'negocio'));
-  const totalInventarioAnt = sumarGastos(gMesAnt.filter(g => g.tipo === 'inventario'));
-  const mesNombre       = MESES[hoy.getMonth()];
+  const { res, equilibrio, acumulado, meses, categorias, dias } = useMemo(() => {
+    const res = resultadoMes(ventas, gastos, hoy);
+    return {
+      res,
+      equilibrio: puntoEquilibrio(res),
+      acumulado: acumuladoMes(ventas, gastos, hoy),
+      meses: historico(ventas, gastos, { meses: 6, fecha: hoy }),
+      categorias: gastosPorCategoria(gastos, hoy),
+      dias: diasDeCaja(caja, gastos),
+    };
+  }, [ventas, gastos, caja]); // eslint-disable-line
+  const gMes = gastosDelMes(gastos, hoy);
+
+  const cajaSaludColor = caja >= config.colchonMinimo * 2 ? MACACO.success : caja >= config.colchonMinimo ? MACACO.primary : MACACO.danger;
+  const cajaSalud      = caja >= config.colchonMinimo * 2 ? 'Holgada' : caja >= config.colchonMinimo ? 'Justa' : 'Bajo el colchón';
+  const escalaCaja     = Math.max(config.colchonMinimo * 3, caja * 1.1, 1);
+  const ultimo         = acumulado[acumulado.length - 1] || { entra: 0, sale: 0 };
+  const sel            = meses[mesElegido];
 
   const handlePago = (id, monto) => {
     try { pagarDeuda(id, monto); } catch (err) { alert('No se pudo registrar el pago: ' + err.message); return; }
     setPagoSheet(null);
   };
-
   const handleGuardarDeuda = (cambios) => {
-    if (deudaSheet === 'new') {
-      agregarDeuda(cambios);
-    } else {
-      editarDeuda(deudaSheet.id, cambios);
-    }
+    if (deudaSheet === 'new') agregarDeuda(cambios);
+    else editarDeuda(deudaSheet.id, cambios);
     setDeudaSheet(null);
   };
-
-  const handleEliminarDeuda = (id) => {
-    eliminarDeuda(id);
-    setDeudaSheet(null);
-  };
+  const handleEliminarDeuda = (id) => { eliminarDeuda(id); setDeudaSheet(null); };
 
   return (
     <Screen>
       <div style={{ padding: '6px 0 16px' }}>
         <div style={{ fontSize: 11, color: MACACO.primary, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase' }}>
-          Salud financiera
+          Plata del negocio
         </div>
         <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.02em', marginTop: 4 }}>Finanzas</div>
       </div>
 
       {/* Caja */}
-      <Card style={{ marginBottom: 18 }} padding={18}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-          <div style={{ fontSize: 11, color: MACACO.textDim, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Caja disponible</div>
+      <Card style={{ marginBottom: 14 }} padding={18}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <div style={rotulo}>Caja disponible</div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              padding: '4px 10px', borderRadius: 999,
-              background: cajaSaludColor + '18', color: cajaSaludColor,
-              fontSize: 11, fontWeight: 600,
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999,
+              background: cajaSaludColor + '18', color: cajaSaludColor, fontSize: 11, fontWeight: 600,
             }}>
               <Dot color={cajaSaludColor} size={6} /> {cajaSalud}
-            </div>
+            </span>
             <button onClick={() => setAjusteCaja(true)} style={{
-              background: 'transparent', border: `1px solid ${MACACO.border}`,
-              color: MACACO.textMuted, fontSize: 10, fontWeight: 600,
-              padding: '4px 8px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit',
+              background: 'transparent', border: `1px solid ${MACACO.border}`, color: MACACO.textMuted,
+              fontSize: 10, fontWeight: 600, padding: '4px 8px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit',
             }}>Ajustar</button>
           </div>
         </div>
-        <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: '-0.03em', color: MACACO.primary }}>{clp(caja)}</div>
-        <div style={{ marginTop: 14, position: 'relative', height: 6, background: 'rgba(255,255,255,0.06)', borderRadius: 999 }}>
-          <div style={{
-            position: 'absolute', left: 0, top: 0, bottom: 0, width: '100%',
-            background: `linear-gradient(90deg, ${MACACO.danger} 0%, ${MACACO.primary} 60%, ${MACACO.success} 100%)`,
-            borderRadius: 999, opacity: 0.4,
+        <NumeroAnimado valor={caja} style={{ fontSize: 36, fontWeight: 800, letterSpacing: '-0.03em', color: MACACO.primary }} />
+        <div style={{ marginTop: 14, position: 'relative', height: 8, background: 'rgba(255,255,255,0.06)', borderRadius: 999 }}>
+          <div className="anim" style={{
+            width: `${Math.min(100, caja / escalaCaja * 100)}%`, height: '100%', borderRadius: 999, background: cajaSaludColor,
+            transformOrigin: 'left', animation: 'crecerX 900ms cubic-bezier(.2,.7,.2,1) both',
           }} />
-          <div style={{
-            position: 'absolute',
-            left: `calc(${Math.min(96, pctCaja)}% - 7px)`,
-            top: -4, width: 14, height: 14, borderRadius: 999,
-            background: cajaSaludColor, border: `2px solid ${MACACO.bg}`,
-            boxShadow: `0 0 12px ${cajaSaludColor}`,
-            transition: 'left 400ms',
+          <div title="Colchón mínimo" style={{
+            position: 'absolute', top: -4, bottom: -4, width: 2, borderRadius: 2, background: '#fff',
+            left: `${config.colchonMinimo / escalaCaja * 100}%`,
           }} />
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 11, color: MACACO.textMuted }}>
-          <span>Crítico $0</span>
-          <span style={{ color: MACACO.danger }}>Mín {clp(config.colchonMinimo)}</span>
-          <span>Cómodo $800k</span>
+          <span>Colchón {clp(config.colchonMinimo)}</span>
+          {dias != null && <span>Alcanza para <b style={{ color: MACACO.text }}>{dias > 365 ? '+1 año' : `${dias} días`}</b> de gastos</span>}
         </div>
       </Card>
 
-      {/* Flujo de caja del mes: para comprobar que la caja cuadra */}
-      <Card style={{ marginBottom: 18 }} padding={16}>
-        <div style={{ fontSize: 11, color: MACACO.textDim, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 10 }}>
-          Flujo de caja · {mesNombre}
+      {/* Resultado del mes */}
+      <Card style={{ marginBottom: 14 }} padding={16}>
+        <div style={rotulo}>Resultado · {mesNombre}</div>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 6 }}>
+          <NumeroAnimado valor={res.ganancia} style={{ fontSize: 30, fontWeight: 800, letterSpacing: '-0.03em', color: res.ganancia >= 0 ? MACACO.text : MACACO.danger }} />
+          <span style={{ fontSize: 12, color: MACACO.textMuted }}>de ganancia</span>
         </div>
-        {[
-          { label: 'Ventas cobradas',     val: ventasMes,       color: MACACO.success, signo: '+' },
-          { label: 'Gastos del negocio',  val: totalNegocio,    color: MACACO.orange,  signo: '−' },
-          { label: 'Compras de inventario', val: totalInventario, color: MACACO.cyan,  signo: '−' },
-        ].map(r => (
-          <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
-            <span style={{ color: MACACO.textDim }}>{r.label}</span>
-            <span style={{ fontWeight: 700, color: r.color, fontVariantNumeric: 'tabular-nums' }}>{r.signo}{clp(r.val)}</span>
+        <div style={{ marginTop: 14 }}>
+          <Cascada ventas={res.ventas} costo={res.costo} gastos={res.gastos} ganancia={res.ganancia} />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 12 }}>
+          <Dato label="Margen" valor={res.margenPct != null ? `${Math.round(res.margenPct * 100)}%` : '—'} />
+          <Dato label="Ticket prom." valor={res.ticket != null ? clpCompact(res.ticket) : '—'} />
+          <Dato label="Ventas" valor={res.transacciones} />
+        </div>
+      </Card>
+
+      {/* Punto de equilibrio */}
+      {equilibrio && (
+        <Card style={{ marginBottom: 14 }} padding={16}>
+          <div style={rotulo}>Punto de equilibrio</div>
+          <div style={{ fontSize: 14, fontWeight: 700, marginTop: 6, lineHeight: 1.4 }}>
+            {equilibrio.falta === 0
+              ? <>Ya cubriste los gastos del mes. Desde aquí, el margen es ganancia.</>
+              : <>Te faltan <span style={{ color: MACACO.primary }}>{clp(equilibrio.falta)}</span> de venta para cubrir los gastos del mes</>}
           </div>
-        ))}
-        <div style={{ height: 1, background: 'rgba(255,255,255,0.1)', margin: '8px 0' }} />
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
-          <span style={{ fontWeight: 700 }}>Variación de caja</span>
-          <span style={{ fontWeight: 800, color: flujoMes >= 0 ? MACACO.success : MACACO.danger, fontVariantNumeric: 'tabular-nums' }}>
-            {flujoMes >= 0 ? '+' : '−'}{clp(Math.abs(flujoMes))}
+          <div style={{ marginTop: 12 }}>
+            <Progress value={equilibrio.cubierto * 100} color={equilibrio.cubierto >= 1 ? MACACO.success : MACACO.primary} height={10} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 11, color: MACACO.textMuted, fontVariantNumeric: 'tabular-nums' }}>
+            <span>{Math.round(equilibrio.cubierto * 100)}% cubierto</span>
+            <span>Necesitas {clp(equilibrio.necesario)} con {Math.round(res.margenPct * 100)}% de margen</span>
+          </div>
+        </Card>
+      )}
+
+      {/* Entradas vs salidas del mes */}
+      <Card style={{ marginBottom: 14 }} padding={16}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+          <div style={rotulo}>Entra y sale · {mesNombre}</div>
+          <span style={{ fontSize: 12, fontWeight: 800, color: ultimo.entra - ultimo.sale >= 0 ? MACACO.success : MACACO.danger, fontVariantNumeric: 'tabular-nums' }}>
+            {ultimo.entra - ultimo.sale >= 0 ? '+' : '−'}{clp(Math.abs(ultimo.entra - ultimo.sale))}
           </span>
         </div>
+        <LineasAcumuladas serie={acumulado} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, gap: 8, flexWrap: 'wrap' }}>
+          <Leyenda items={[
+            { label: `Entra ${clpCompact(ultimo.entra)}`, color: MACACO.serieVentas, linea: true },
+            { label: `Sale ${clpCompact(ultimo.sale)}`, color: 'rgba(255,255,255,0.55)', linea: true, punteada: true },
+          ]} />
+        </div>
         <div style={{ fontSize: 10.5, color: MACACO.textMuted, marginTop: 8, lineHeight: 1.45 }}>
-          No incluye pagos de deudas ni ajustes manuales de caja. Las compras de inventario no restan en el resultado del mes porque su costo ya entra al vender.
+          Sale = gastos del negocio + compras de inventario. No incluye pagos de deudas ni ajustes de caja.
         </div>
       </Card>
 
-      {/* Deudas con interés — alerta */}
-      {deudaConInteres.length > 0 && (
-        <Card
-          accent='rgba(255,77,77,0.3)'
-          style={{ marginBottom: 14, background: 'linear-gradient(135deg, rgba(255,77,77,0.08), rgba(255,77,77,0.02))' }}
-        >
-          <div style={{ fontSize: 10.5, color: MACACO.danger, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 6 }}>
-            Interés activo · {deudaConInteres.length} deuda{deudaConInteres.length > 1 ? 's' : ''}
+      {/* Últimos 6 meses */}
+      <Card style={{ marginBottom: 14 }} padding={16}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+          <div style={rotulo}>Últimos 6 meses</div>
+          <Leyenda items={[{ label: 'Ventas', color: MACACO.serieVentas }, { label: 'Ganancia', color: MACACO.serieGanancia }]} />
+        </div>
+        <BarrasMeses datos={meses} elegido={mesElegido} onElegir={setMesElegido} />
+        {sel && (
+          <div className="anim" key={sel.key} style={{
+            display: 'flex', justifyContent: 'space-between', marginTop: 10, padding: '10px 12px', borderRadius: 10,
+            background: MACACO.cardElev, fontSize: 12.5, animation: 'aparecer 250ms both',
+          }}>
+            <span style={{ fontWeight: 700 }}>{MESES[Number(sel.key.slice(5)) - 1]}</span>
+            <span style={{ color: MACACO.textDim, fontVariantNumeric: 'tabular-nums' }}>
+              Ventas <b style={{ color: MACACO.text }}>{clp(sel.ventas)}</b> · Ganancia <b style={{ color: sel.ganancia >= 0 ? MACACO.text : MACACO.danger }}>{clp(sel.ganancia)}</b>
+            </span>
           </div>
-          <div style={{ fontSize: 13.5, lineHeight: 1.45, color: '#fff' }}>
-            <b style={{ fontVariantNumeric: 'tabular-nums' }}>{clp(deudaConInteres.reduce((s,d)=>s+d.amt,0))}</b> generan{' '}
-            <b style={{ color: MACACO.danger, fontVariantNumeric: 'tabular-nums' }}>{clp(interesTotal)}/mes</b> en pérdidas.
-          </div>
-        </Card>
-      )}
-
-
-      <SectionTitle right={clp(totalDebt) + ' total'}>Deudas del negocio</SectionTitle>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 10 }}>
-        {deudas.length === 0 ? (
-          <Card>
-            <div style={{ textAlign: 'center', padding: '16px 0', color: MACACO.success, fontSize: 13, fontWeight: 600 }}>
-              ¡Sin deudas pendientes! 🎉
-            </div>
-          </Card>
-        ) : (
-          (() => {
-            let urgentCount = 0;
-            return deudas.map((d) => {
-              const order = d.level === 'urgent' ? ++urgentCount : null;
-              return (
-                <DebtCard
-                  key={d.id}
-                  d={{ ...d, order }}
-                  onPagar={() => setPagoSheet(d)}
-                  onEditar={() => setDeudaSheet(d)}
-                />
-              );
-            });
-          })()
         )}
-      </div>
-
-      <button
-        onClick={() => setDeudaSheet('new')}
-        style={{
-          width: '100%', padding: '13px', marginBottom: 18,
-          background: 'rgba(245,197,24,0.1)', color: MACACO.primary,
-          border: `1px solid rgba(245,197,24,0.3)`, borderRadius: 12,
-          fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-          letterSpacing: '0.03em',
-          display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-        }}
-      >
-        <Icon.plus size={13} /> AGREGAR DEUDA
-      </button>
-
-      <SectionTitle>Objetivos</SectionTitle>
-      <Card style={{ marginBottom: 18 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
-          <div style={{ fontSize: 13, fontWeight: 600 }}>Eliminar deuda total</div>
-          <div style={{ fontSize: 12, color: MACACO.textMuted }}>{clp(0)} / {clp(totalDebt)}</div>
-        </div>
-        <Progress value={0} color={MACACO.danger} height={6} />
       </Card>
 
-      {/* Gastos del mes */}
-      <SectionTitle right={totalGastosMes > 0 ? clp(totalGastosMes) + ' total' : undefined}>
-        Gastos · {mesNombre}
+      {/* En qué se va la plata */}
+      <SectionTitle right={categorias.length ? clp(categorias.reduce((n, c) => n + c.monto, 0)) + ' total' : undefined}>
+        En qué se va la plata · {mesNombre}
       </SectionTitle>
-
-      {/* Alerta si gastos negocio superan el umbral */}
-      {totalNegocio > ALERTA_GASTOS_NEGOCIO && (
-        <Card
-          accent='rgba(255,159,64,0.4)'
-          style={{ marginBottom: 12, background: 'linear-gradient(135deg, rgba(255,159,64,0.08), rgba(255,159,64,0.02))' }}
-        >
-          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-            <div style={{
-              width: 32, height: 32, borderRadius: 10, flexShrink: 0,
-              background: 'rgba(255,159,64,0.15)', color: MACACO.orange,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <Icon.warn size={17} />
-            </div>
-            <div>
-              <div style={{ fontSize: 10.5, color: MACACO.orange, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 4 }}>
-                Gastos negocio superaron el umbral
-              </div>
-              <div style={{ fontSize: 13, color: '#fff', lineHeight: 1.45 }}>
-                <b style={{ fontVariantNumeric: 'tabular-nums' }}>{clp(totalNegocio)}</b> vs límite{' '}
-                <b style={{ color: MACACO.orange }}>{clp(ALERTA_GASTOS_NEGOCIO)}/mes</b>
-              </div>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
-        <GastoTile
-          label="Negocio"
-          monto={totalNegocio}
-          montoAnt={totalNegocioAnt}
-          color={MACACO.orange}
-        />
-        <GastoTile
-          label="Inventario"
-          monto={totalInventario}
-          montoAnt={totalInventarioAnt}
-          color={MACACO.cyan}
-        />
-      </div>
-
-      {/* Lista de gastos */}
+      <Card style={{ marginBottom: 10 }} padding={16}>
+        {categorias.length === 0
+          ? <div style={{ textAlign: 'center', padding: '8px 0', color: MACACO.textMuted, fontSize: 12 }}>Sin gastos registrados este mes</div>
+          : <BarrasCategorias items={categorias} />}
+      </Card>
+      {/* Detalle de gastos (plegable) */}
       {gMes.length === 0 ? (
-        <Card style={{ marginBottom: 18 }}>
-          <div style={{ textAlign: 'center', padding: '12px 0', color: MACACO.textMuted, fontSize: 12 }}>
-            Sin gastos registrados este mes
-          </div>
-        </Card>
+        <div style={{ marginBottom: 18 }} />
       ) : (
         <Card padding={0} style={{ marginBottom: 18 }}>
           {(gastosExpanded ? gMes : gMes.slice(0, 5)).map((g, i, arr) => {
@@ -299,6 +230,59 @@ export default function FinanzasScreen({ go }) {
         </Card>
       )}
 
+      {/* Deudas con interés — alerta */}
+      {deudaConInteres.length > 0 && (
+        <Card accent='rgba(255,77,77,0.3)' style={{ marginBottom: 14, background: 'linear-gradient(135deg, rgba(255,77,77,0.08), rgba(255,77,77,0.02))' }}>
+          <div style={{ fontSize: 10.5, color: MACACO.danger, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 6 }}>
+            Interés activo · {deudaConInteres.length} deuda{deudaConInteres.length > 1 ? 's' : ''}
+          </div>
+          <div style={{ fontSize: 13.5, lineHeight: 1.45, color: '#fff' }}>
+            <b style={{ fontVariantNumeric: 'tabular-nums' }}>{clp(deudaConInteres.reduce((s, d) => s + d.amt, 0))}</b> generan{' '}
+            <b style={{ color: MACACO.danger, fontVariantNumeric: 'tabular-nums' }}>{clp(interesTotal)}/mes</b> de interés.
+          </div>
+        </Card>
+      )}
+
+      <SectionTitle right={clp(totalDebt) + ' total'}>Deudas del negocio</SectionTitle>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 10 }}>
+        {deudas.length === 0 ? (
+          <Card>
+            <div style={{ textAlign: 'center', padding: '16px 0', color: MACACO.success, fontSize: 13, fontWeight: 600 }}>
+              ¡Sin deudas pendientes! 🎉
+            </div>
+          </Card>
+        ) : (
+          (() => {
+            let urgentCount = 0;
+            return deudas.map((d) => {
+              const order = d.level === 'urgent' ? ++urgentCount : null;
+              return (
+                <DebtCard
+                  key={d.id}
+                  d={{ ...d, order }}
+                  onPagar={() => setPagoSheet(d)}
+                  onEditar={() => setDeudaSheet(d)}
+                />
+              );
+            });
+          })()
+        )}
+      </div>
+
+      <button
+        onClick={() => setDeudaSheet('new')}
+        style={{
+          width: '100%', padding: '13px', marginBottom: 18,
+          background: 'rgba(245,197,24,0.1)', color: MACACO.primary,
+          border: `1px solid rgba(245,197,24,0.3)`, borderRadius: 12,
+          fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+          letterSpacing: '0.03em',
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        }}
+      >
+        <Icon.plus size={13} /> AGREGAR DEUDA
+      </button>
+
       {pagoSheet && (
         <PagoSheet deuda={pagoSheet} onClose={() => setPagoSheet(null)} onPagar={handlePago} caja={caja} />
       )}
@@ -317,34 +301,11 @@ export default function FinanzasScreen({ go }) {
   );
 }
 
-function GastoTile({ label, monto, montoAnt, color }) {
-  const diff    = monto - montoAnt;
-  const hasPrev = montoAnt > 0 || monto > 0;
-
+function Dato({ label, valor }) {
   return (
-    <div style={{
-      background: MACACO.card, border: `1px solid ${MACACO.border}`,
-      borderRadius: 14, padding: 14, position: 'relative', overflow: 'hidden',
-    }}>
-      <div style={{
-        position: 'absolute', top: 0, left: 0, width: 3, height: 26,
-        background: color, borderRadius: '0 4px 4px 0',
-        boxShadow: `0 0 10px ${color}`,
-      }} />
-      <div style={{ fontSize: 10, color: MACACO.textMuted, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-        {label}
-      </div>
-      <div style={{ fontSize: 20, fontWeight: 800, marginTop: 6, fontVariantNumeric: 'tabular-nums', color: monto > 0 ? '#fff' : MACACO.textMuted }}>
-        {monto > 0 ? clp(monto) : '$0'}
-      </div>
-      {hasPrev && montoAnt > 0 && (
-        <div style={{ fontSize: 10, marginTop: 4, fontVariantNumeric: 'tabular-nums', color: diff > 0 ? MACACO.danger : MACACO.success, fontWeight: 600 }}>
-          {diff > 0 ? '+' : ''}{clp(diff)} vs mes ant.
-        </div>
-      )}
-      {montoAnt === 0 && monto === 0 && (
-        <div style={{ fontSize: 10, marginTop: 4, color: MACACO.textMuted }}>Sin gastos</div>
-      )}
+    <div style={{ background: MACACO.cardElev, borderRadius: 10, padding: '9px 10px', minWidth: 0 }}>
+      <div style={{ fontSize: 9.5, color: MACACO.textMuted, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>{label}</div>
+      <div style={{ fontSize: 15, fontWeight: 800, marginTop: 3, fontVariantNumeric: 'tabular-nums' }}>{valor}</div>
     </div>
   );
 }

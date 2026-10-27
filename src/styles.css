@@ -44,3 +44,12 @@ input, button, textarea { font-family: inherit; }
 @media (max-width: 480px) {
   body { padding: 0 !important; }
 }
+
+/* Motion de los gráficos: entran una vez al abrir la pantalla. */
+@keyframes crecerY { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes crecerX { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes trazo   { from { stroke-dashoffset: var(--largo, 1000); } to { stroke-dashoffset: 0; } }
+@keyframes aparecer { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .anim { animation: none !important; transition: none !important; }
+}
