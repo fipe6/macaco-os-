@@ -16,12 +16,18 @@ function rng(semilla) {
 
 // ¿(x, y) está dentro del cerebro? x e y en -1..1. Dos hemisferios con borde
 // ondulado (circunvoluciones), una fisura al centro y un tronco abajo.
-function dentro(x, y) {
+const borde = (th) => 1 + 0.07 * Math.sin(7 * th + 0.8) + 0.05 * Math.sin(12 * th + 2.1) + 0.03 * Math.sin(19 * th);
+
+// Qué tan adentro del hemisferio está (x, y): 0 = centro, 1 = borde.
+function radio(x, y) {
   const lado = x < 0 ? -1 : 1;
   const dx = (Math.abs(x) - 0.5) / 0.52, dy = (y + 0.02) / 0.74;
-  const r = Math.hypot(dx, dy), th = Math.atan2(dy, dx * lado);
-  const borde = 1 + 0.07 * Math.sin(7 * th + 0.8) + 0.05 * Math.sin(12 * th + 2.1) + 0.03 * Math.sin(19 * th);
-  if (r < borde && Math.abs(x) > 0.022 + 0.03 * Math.max(0, y)) return true;
+  const th = Math.atan2(dy, dx * lado);
+  return Math.hypot(dx, dy) / borde(th);
+}
+
+function dentro(x, y) {
+  if (radio(x, y) < 1 && Math.abs(x) > 0.022 + 0.03 * Math.max(0, y)) return true;
   // tronco cerebral
   return Math.abs(x) < 0.1 && y > 0.62 && y < 0.92;
 }
@@ -34,8 +40,10 @@ function crearParticulas(ancho, alto, cantidad, aleatorio) {
     const x = aleatorio() * 2 - 1, y = aleatorio() * 2 - 1;
     if (!dentro(x, y)) continue;
     // densidad irregular: más puntos a lo largo de "pliegues"
+    // y muchos más en el borde, para que se lea la silueta
     const pliegue = 0.5 + 0.5 * Math.sin(x * 16 + Math.sin(y * 9) * 2.4) * Math.cos(y * 13 - x * 5);
-    if (aleatorio() > 0.28 + 0.72 * pliegue) continue;
+    const enBorde = Math.max(0, radio(x, y) - 0.82) / 0.18;
+    if (aleatorio() > 0.22 + 0.62 * pliegue + 0.6 * enBorde) continue;
     parts.push({ nx: x, ny: y, x: cx + x * ex, y: cy + y * ey, tam: 1.6 + aleatorio() * 2.6, rot: aleatorio() * Math.PI * 2,
       color: PALETA[Math.floor(aleatorio() * PALETA.length)], fase: aleatorio() * 6.28, vel: 0.4 + aleatorio() * 1.1, base: 0.3 + aleatorio() * 0.55 });
   }
@@ -45,6 +53,30 @@ function crearParticulas(ancho, alto, cantidad, aleatorio) {
       color: PALETA[Math.floor(aleatorio() * PALETA.length)], fase: aleatorio() * 6.28, vel: 0.3 + aleatorio(), base: 0.12 + aleatorio() * 0.2 });
   }
   return parts;
+}
+
+// Contorno de un hemisferio (lado -1 izquierdo, 1 derecho), a escala k del borde.
+// `ruido` agrega ondas finas para los pliegues interiores.
+function contorno(lado, k, ruido = 0, fase = 0) {
+  const pts = [];
+  for (let i = 0; i <= 160; i++) {
+    const th = (i / 160) * Math.PI * 2;
+    const r = k * borde(th) * (1 + ruido * Math.sin(th * 23 + fase) + ruido * 0.6 * Math.sin(th * 37 + fase * 2));
+    const x = lado * 0.5 + 0.52 * r * Math.cos(th), y = -0.02 + 0.74 * r * Math.sin(th);
+    if (Math.abs(x) > 0.03) pts.push([x, y]); else pts.push(null);
+  }
+  return pts;
+}
+
+function trazar(ctx, pts, cx, cy, ex, ey) {
+  ctx.beginPath();
+  let abierto = false;
+  pts.forEach(p => {
+    if (!p) { abierto = false; return; }
+    const [x, y] = [cx + p[0] * ex, cy + p[1] * ey];
+    if (abierto) ctx.lineTo(x, y); else { ctx.moveTo(x, y); abierto = true; }
+  });
+  ctx.stroke();
 }
 
 function triangulo(ctx, x, y, tam, rot) {
@@ -95,9 +127,24 @@ export function CerebroMapa({ nodos, onElegir, alto = 400 }) {
       });
     });
 
+    // Silueta y pliegues: lo que hace que se lea "cerebro" de un vistazo.
+    const lineas = [-1, 1].flatMap(lado => [
+      { pts: contorno(lado, 1.02), ancho: 1.6, alfa: 0.75 },
+      { pts: contorno(lado, 0.74, 0.045, lado), ancho: 1, alfa: 0.22 },
+      { pts: contorno(lado, 0.46, 0.06, lado * 2), ancho: 1, alfa: 0.13 },
+    ]);
+
     let raf, visible = true;
     const dibujar = (t) => {
       ctx.clearRect(0, 0, ancho, alto);
+      const respira = quieto ? 1 : 0.85 + 0.15 * Math.sin(t * 0.0012);
+      ctx.strokeStyle = '#9984D8';
+      ctx.shadowColor = '#8052ff';
+      lineas.forEach(l => {
+        ctx.globalAlpha = l.alfa * respira; ctx.lineWidth = l.ancho; ctx.shadowBlur = l.ancho > 1 ? 10 : 4;
+        trazar(ctx, l.pts, cx, cy, ex, ey);
+      });
+      ctx.shadowBlur = 0;
       ctx.lineWidth = 1;
       parts.forEach(p => {
         const tw = quieto ? 0.75 : 0.55 + 0.45 * Math.sin(t * 0.001 * p.vel + p.fase);
