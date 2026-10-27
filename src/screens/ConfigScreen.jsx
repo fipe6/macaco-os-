@@ -2,41 +2,28 @@ import { useState } from 'react';
 import { MACACO, clp } from '../theme.js';
 import { Card, SectionTitle, Dot, Icon } from '../components/ui.jsx';
 import { Screen } from '../components/Screen.jsx';
-import { flushQueue } from '../services/webhook.js';
 import { useApp } from '../store.jsx';
 import { useAuth } from '../AuthProvider.jsx';
 
 export default function ConfigScreen() {
-  const { config, setConfig, caja, ajustarCaja } = useApp();
+  const { config, setConfig, caja, ajustarCaja, sync, reintentarSync } = useApp();
   const { session, signOut } = useAuth();
-  const [syncing,  setSyncing]  = useState(false);
-  const [lastSync, setLastSync] = useState('—');
   const [editMeta, setEditMeta] = useState(false);
+  const [reintentando, setReintentando] = useState(false);
 
-  const n8nUrl = import.meta.env.VITE_N8N_BASE_URL;
-  const n8nOk  = !!n8nUrl;
-
-  const conns = [
-    { name: 'n8n (webhooks)',  desc: n8nOk ? n8nUrl : 'Configura VITE_N8N_BASE_URL en .env.local', status: n8nOk ? 'on' : 'warn', icon: '⚡' },
-    { name: 'Google Sheets',   desc: 'Vía workflow n8n',               status: n8nOk ? 'on' : 'off', icon: '📊' },
-    { name: 'Claude AI',       desc: 'Análisis automáticos vía n8n',   status: n8nOk ? 'on' : 'off', icon: '🤖' },
-    { name: 'WhatsApp',        desc: 'Vía workflow n8n',               status: 'warn',               icon: '💬' },
-    { name: 'Google Calendar', desc: 'Sin conectar',                   status: 'off',                icon: '🗓'  },
-  ];
-
-  const handleSync = async () => {
-    setSyncing(true);
-    const res = await flushQueue();
-    setSyncing(false);
-    setLastSync(new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }));
-    if (res.sent > 0) {
-      alert(`Sincronizados ${res.sent} eventos. Pendientes: ${res.remaining}.`);
-    } else if (res.remaining > 0) {
-      alert(`No se pudo sincronizar. ${res.remaining} eventos en cola.`);
-    } else {
-      alert('Todo al día — sin eventos pendientes.');
-    }
+  const reintentar = async () => {
+    setReintentando(true);
+    await reintentarSync();
+    setReintentando(false);
   };
+
+  const ultimoOk = sync.ultimoOk
+    ? new Date(sync.ultimoOk).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })
+    : '—';
+  const syncColor = sync.pendientes === 0 ? MACACO.success : sync.error ? MACACO.danger : MACACO.primary;
+  const syncTexto = sync.pendientes === 0
+    ? 'Todo guardado en Supabase'
+    : `${sync.pendientes} cambio${sync.pendientes > 1 ? 's' : ''} guardado${sync.pendientes > 1 ? 's' : ''} en el celular, por enviar`;
 
   return (
     <Screen>
@@ -92,60 +79,49 @@ export default function ConfigScreen() {
       </Card>
 
       {/* Conexiones */}
-      <SectionTitle>Conexiones</SectionTitle>
-      <Card padding={0} style={{ marginBottom: 18 }}>
-        {conns.map((c, i) => (
-          <div key={c.name} style={{
-            display: 'flex', alignItems: 'center', gap: 12,
-            padding: '14px',
-            borderBottom: i === conns.length - 1 ? 'none' : `1px solid ${MACACO.borderSoft}`,
-          }}>
-            <div style={{
-              width: 36, height: 36, borderRadius: 10,
-              background: 'rgba(255,255,255,0.04)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17,
-            }}>{c.icon}</div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 600 }}>{c.name}</div>
-              <div style={{ fontSize: 11.5, color: MACACO.textMuted, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.desc}</div>
-            </div>
-            <StatusBadge status={c.status} />
-          </div>
-        ))}
-      </Card>
-
-      {/* Sistema */}
-      <SectionTitle>Sistema</SectionTitle>
+      {/* Guardado */}
+      <SectionTitle>Guardado</SectionTitle>
       <Card style={{ marginBottom: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
           <Icon.monkey size={36} />
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 700 }}>Macaco OS v1.1</div>
-            <div style={{ fontSize: 11.5, color: MACACO.textMuted }}>Fase 1 — Persistencia real activa</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 15, fontWeight: 700 }}>Macaco OS v2</div>
+            <div style={{ fontSize: 11.5, color: syncColor, fontWeight: 600, marginTop: 2, display: 'flex', alignItems: 'center', gap: 5 }}>
+              <Dot color={syncColor} size={6}/> {syncTexto}
+            </div>
           </div>
         </div>
         <div style={{
-          display: 'flex', justifyContent: 'space-between',
+          fontSize: 11.5, color: MACACO.textDim, lineHeight: 1.45,
           padding: '8px 0', borderTop: `1px solid ${MACACO.borderSoft}`,
+        }}>
+          Cada venta, gasto o ajuste se guarda primero en este celular y se envía a Supabase.
+          Si no hay señal, se reintenta solo hasta que llegue.
+        </div>
+        <div style={{
+          display: 'flex', justifyContent: 'space-between',
+          padding: '8px 0 0', borderTop: `1px solid ${MACACO.borderSoft}`,
           fontSize: 11.5, color: MACACO.textDim,
         }}>
-          <span>Última sincronización manual</span>
-          <span style={{ color: MACACO.success, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-            <Dot color={MACACO.success} size={5}/> {lastSync}
-          </span>
+          <span>Último guardado confirmado</span>
+          <span style={{ color: MACACO.text, fontWeight: 600 }}>{ultimoOk}</span>
         </div>
+        {sync.error && sync.pendientes > 0 && (
+          <div style={{ fontSize: 11, color: MACACO.danger, marginTop: 6 }}>Último error: {sync.error}</div>
+        )}
       </Card>
 
-      <button onClick={handleSync} disabled={syncing} style={{
-        width: '100%', padding: '14px', background: MACACO.primary,
-        color: '#0A0A0F', border: 'none', borderRadius: 12,
-        fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-        boxShadow: `0 0 18px ${MACACO.primary}44`,
-        opacity: syncing ? 0.7 : 1,
-      }}>
-        <Icon.refresh size={14}/> {syncing ? 'Sincronizando...' : 'Reintentar cola de eventos'}
-      </button>
+      {sync.pendientes > 0 && (
+        <button onClick={reintentar} disabled={reintentando} style={{
+          width: '100%', padding: '14px', background: MACACO.primary,
+          color: '#0A0A0F', border: 'none', borderRadius: 12,
+          fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          opacity: reintentando ? 0.7 : 1,
+        }}>
+          <Icon.refresh size={14}/> {reintentando ? 'Enviando...' : 'Enviar ahora'}
+        </button>
+      )}
 
       {session?.user?.email && (
         <div style={{ fontSize: 11, color: MACACO.textMuted, textAlign: 'center', marginTop: 14 }}>
@@ -165,24 +141,6 @@ export default function ConfigScreen() {
         <EditMetasSheet config={config} onClose={() => setEditMeta(false)} onSave={(cambios) => { setConfig(cambios); setEditMeta(false); }} />
       )}
     </Screen>
-  );
-}
-
-function StatusBadge({ status }) {
-  const cfg = {
-    on:   { c: MACACO.success, l: 'Conectado'    },
-    warn: { c: MACACO.primary, l: 'Pendiente'    },
-    off:  { c: MACACO.danger,  l: 'Sin conectar' },
-  }[status];
-  return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 5,
-      padding: '4px 9px', borderRadius: 999,
-      background: cfg.c + '18', color: cfg.c,
-      fontSize: 10.5, fontWeight: 700, letterSpacing: '0.04em',
-    }}>
-      <Dot color={cfg.c} size={6}/> {cfg.l}
-    </span>
   );
 }
 

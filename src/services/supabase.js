@@ -17,12 +17,12 @@ const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 export const DB_HABILITADO = true;
 
 // ── Proxy (same-origin, sin CORS) ────────────────────────────────────────────
-async function proxySelect(table) {
+async function proxySelect(table, query = '') {
   const token = await getAccessToken();
   const res = await fetch('/api/db', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ table, method: 'GET', token }),
+    body: JSON.stringify({ table, method: 'GET', query, token }),
   });
   if (!res.ok) throw new Error(`proxy HTTP ${res.status}`);
   const { data, error } = await res.json();
@@ -84,8 +84,8 @@ async function directFetch(url, options = {}) {
   }
 }
 
-async function directSelect(table) {
-  const res = await directFetch(`${SUPA_URL}/rest/v1/${table}`);
+async function directSelect(table, query = '') {
+  const res = await directFetch(`${SUPA_URL}/rest/v1/${table}${query ? '?' + query : ''}`);
   return res.json();
 }
 
@@ -107,6 +107,21 @@ export async function selectAll(table) {
     console.warn('[db] proxy falló, usando directo:', proxyErr.message);
     return directSelect(table);
   }
+}
+
+// Lee solo algunas claves de app_data → { clave: valor }.
+export async function selectClaves(claves) {
+  if (!claves.length) return {};
+  const lista = claves.map(c => `"${c.replace(/"/g, '')}"`).join(',');
+  const query = `select=clave,valor&clave=in.(${encodeURIComponent(lista)})`;
+  let filas;
+  try {
+    filas = await proxySelect('app_data', query);
+  } catch (proxyErr) {
+    console.warn('[db] proxy falló, usando directo:', proxyErr.message);
+    filas = await directSelect('app_data', query);
+  }
+  return Object.fromEntries((filas || []).map(f => [f.clave, f.valor]));
 }
 
 export async function upsertRows(table, rows, onConflict = 'clave') {
@@ -138,20 +153,7 @@ export async function pushInventarioRows(productos) {
   return upsertRows('inventario', filas, 'producto');
 }
 
-// Interfaz db.from() para compatibilidad con webhook.js
-export const db = {
-  selectAll,
-  upsertRows,
-  from: (table) => ({
-    upsert: (rows, opts) => {
-      const conf = opts?.onConflict || 'clave';
-      return {
-        then: (fn) => upsertRows(table, rows, conf)
-          .then(() => fn({ error: null }))
-          .catch(err => fn({ error: { message: err.message } })),
-      };
-    },
-  }),
-};
+// Publicar Catálogo: escribe todos los productos a la tabla `inventario`.
+export const publicarCatalogo = (productos) => pushInventarioRows(productos);
 
 console.log('[db] iniciado — proxy + fetch directo');

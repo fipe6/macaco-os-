@@ -11,7 +11,6 @@ import ReportesScreen from './screens/ReportesScreen.jsx';
 import ConfigScreen from './screens/ConfigScreen.jsx';
 import GastoScreen from './screens/GastoScreen.jsx';
 import CortezaScreen from './screens/CortezaScreen.jsx';
-import { flushQueue } from './services/webhook.js';
 import { DB_HABILITADO } from './services/supabase.js';
 import { useApp } from './store.jsx';
 
@@ -60,10 +59,12 @@ function LoadingDB() {
   );
 }
 
-function DBStatusBadge({ error }) {
+// Estado del guardado: verde = todo en Supabase; amarillo = cambios en el
+// celular por enviar (se reintenta solo); rojo = no se pudo cargar de Supabase.
+function DBStatusBadge({ error, sync, onReintentar }) {
   if (!DB_HABILITADO) return null;
 
-  if (error) {
+  if (error && sync.pendientes === 0) {
     return (
       <div style={{
         position: 'absolute', top: 0, left: 0, right: 0, zIndex: 50,
@@ -73,10 +74,10 @@ function DBStatusBadge({ error }) {
       }}>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 11, fontWeight: 800, color: '#fff', letterSpacing: '0.08em' }}>
-            DB OFFLINE
+            SIN CONEXIÓN CON SUPABASE
           </div>
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.8)', marginTop: 2 }}>
-            {error.length > 60 ? error.slice(0, 60) + '…' : error}
+          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.85)', marginTop: 2 }}>
+            Mostrando lo guardado en este celular. Lo que registres se envía al volver la señal.
           </div>
         </div>
         <button
@@ -94,23 +95,30 @@ function DBStatusBadge({ error }) {
     );
   }
 
+  const pendiente = sync.pendientes > 0;
+  const color = pendiente ? MACACO.primary : MACACO.success;
   return (
-    <div style={{
-      position: 'absolute', top: 12, right: 14, zIndex: 50,
-      display: 'flex', alignItems: 'center', gap: 5,
-      padding: '3px 9px', borderRadius: 999,
-      background: 'rgba(0,230,118,0.10)',
-      border: '1px solid rgba(0,230,118,0.25)',
-      fontSize: 9.5, fontWeight: 700, letterSpacing: '0.06em',
-      color: MACACO.success, pointerEvents: 'none',
-    }}>
+    <button
+      onClick={pendiente ? onReintentar : undefined}
+      style={{
+        position: 'absolute', top: 12, right: 14, zIndex: 50,
+        display: 'flex', alignItems: 'center', gap: 5,
+        padding: '3px 9px', borderRadius: 999,
+        background: color + '1a',
+        border: `1px solid ${color}40`,
+        fontSize: 9.5, fontWeight: 700, letterSpacing: '0.06em',
+        color, fontFamily: 'inherit',
+        cursor: pendiente ? 'pointer' : 'default',
+        pointerEvents: pendiente ? 'auto' : 'none',
+      }}
+    >
       <span style={{
         width: 5, height: 5, borderRadius: 999,
-        background: MACACO.success, boxShadow: `0 0 6px ${MACACO.success}`,
+        background: color, boxShadow: `0 0 6px ${color}`,
         display: 'inline-block',
       }} />
-      DB SYNC
-    </div>
+      {pendiente ? (sync.enviando ? 'ENVIANDO…' : `${sync.pendientes} POR ENVIAR`) : 'GUARDADO'}
+    </button>
   );
 }
 
@@ -119,15 +127,8 @@ const APP_VERSION = '1793039876';
 function AppInner() {
   const [screen, setScreen]           = useState('home');
   const [updateListo, setUpdateListo] = useState(false);
-  const { cargandoDB, errorDB } = useApp();
+  const { cargandoDB, errorDB, sync, reintentarSync } = useApp();
   const go = (s) => setScreen(s);
-
-  useEffect(() => {
-    const onOnline = () => flushQueue();
-    window.addEventListener('online', onOnline);
-    if (navigator.onLine) flushQueue();
-    return () => window.removeEventListener('online', onOnline);
-  }, []);
 
   // Verificación de versión — fuerza recarga si hay versión nueva en el servidor.
   // Funciona aunque el service worker sirva código viejo.
@@ -209,7 +210,7 @@ function AppInner() {
           {cargandoDB && <LoadingDB />}
 
           {/* Badge de estado de conexión */}
-          {!cargandoDB && <DBStatusBadge error={errorDB} />}
+          {!cargandoDB && <DBStatusBadge error={errorDB} sync={sync} onReintentar={reintentarSync} />}
 
           <div
             key={screen}

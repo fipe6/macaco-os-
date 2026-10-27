@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { MACACO, clp } from '../theme.js';
 import { Card, SectionTitle, Progress, Dot, Icon } from '../components/ui.jsx';
 import { Screen } from '../components/Screen.jsx';
-import { sendDeudaUpdate } from '../services/webhook.js';
 import { useApp } from '../store.jsx';
 import { gastosDelMes, sumarGastos, MESES, ventasDelMes, sumarTotal } from '../store.jsx';
 
@@ -36,20 +35,16 @@ export default function FinanzasScreen({ go }) {
   const totalInventarioAnt = sumarGastos(gMesAnt.filter(g => g.tipo === 'inventario'));
   const mesNombre       = MESES[hoy.getMonth()];
 
-  const handlePago = async (id, monto) => {
-    pagarDeuda(id, monto);
-    const deuda = deudas.find(d => d.id === id);
-    if (deuda) await sendDeudaUpdate({ ...deuda, amt: Math.max(0, deuda.amt - monto), pago: monto });
+  const handlePago = (id, monto) => {
+    try { pagarDeuda(id, monto); } catch (err) { alert('No se pudo registrar el pago: ' + err.message); return; }
     setPagoSheet(null);
   };
 
   const handleGuardarDeuda = (cambios) => {
     if (deudaSheet === 'new') {
       agregarDeuda(cambios);
-      sendDeudaUpdate({ ...cambios, id: 'nueva' });
     } else {
       editarDeuda(deudaSheet.id, cambios);
-      sendDeudaUpdate({ ...deudaSheet, ...cambios });
     }
     setDeudaSheet(null);
   };

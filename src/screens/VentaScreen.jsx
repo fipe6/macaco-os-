@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { MACACO, clp } from '../theme.js';
 import { Card, SectionTitle, Dot, Icon } from '../components/ui.jsx';
 import { Screen } from '../components/Screen.jsx';
-import { sendVenta } from '../services/webhook.js';
 import { useApp } from '../store.jsx';
 
 const stepBtn = {
@@ -27,7 +26,7 @@ function repartirPack(lineas, totalPack) {
 }
 
 export default function VentaScreen({ go }) {
-  const { productos, ventas, registrarVenta, cancelarVenta, registrarMovimiento } = useApp();
+  const { productos, ventas, registrarVenta, cancelarVenta } = useApp();
   const disponibles = productos.filter(p => p.stock > 0);
 
   const [productId, setProductId] = useState(disponibles[0]?.id || '');
@@ -99,9 +98,7 @@ export default function VentaScreen({ go }) {
     if (sending || invalido) return;
     setSending(true);
     const packId = esPack ? 'pack-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5) : undefined;
-    const stockCorriente = {};
     const ventasPack = [];
-    const movsPack   = [];
     for (let i = 0; i < todas.length; i++) {
       const l = todas[i];
       const pr = prodDe(l.productId);
@@ -118,22 +115,16 @@ export default function VentaScreen({ go }) {
         metodoPago:     method,
         ...(packId ? { packId } : {}),
       };
-      const antes = stockCorriente[l.productId] ?? pr.stock;
-      stockCorriente[l.productId] = Math.max(0, antes - l.qty);
       ventasPack.push(venta);
-      movsPack.push({
-        productoId:   l.productId,
-        producto:     pr.name,
-        tipo:         'venta',
-        delta:        -l.qty,
-        stockAntes:   antes,
-        stockDespues: stockCorriente[l.productId],
-      });
     }
-    registrarVenta(ventasPack);
-    registrarMovimiento(movsPack);
-    // n8n es fire-and-forget: si no responde, la venta ya quedó guardada igual.
-    ventasPack.forEach(v => { sendVenta(v).catch(() => {}); });
+    // Todas las líneas, el stock, la caja y los movimientos se guardan juntos.
+    try {
+      registrarVenta(ventasPack);
+    } catch (err) {
+      setSending(false);
+      alert('No se pudo registrar la venta: ' + err.message);
+      return;
+    }
     setSent(true);
     setSending(false);
     setTimeout(() => { go('home'); }, 1400);
@@ -149,7 +140,7 @@ export default function VentaScreen({ go }) {
           Registrar venta
         </div>
         <div style={{ fontSize: 12.5, color: MACACO.textDim, marginTop: 4 }}>
-          Se guarda localmente y se envía a n8n
+          Queda guardada en el celular y en Supabase
         </div>
       </div>
 
@@ -391,7 +382,7 @@ export default function VentaScreen({ go }) {
         color: MACACO.textMuted, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
       }}>
         <Dot color={MACACO.success} size={6} />
-        Guarda en dispositivo · sincroniza con n8n
+        Se guarda en el celular · se envía a Supabase aunque no haya señal
       </div>
 
       <UltimasVentas ventas={ventas} onCancelar={cancelarVenta} />

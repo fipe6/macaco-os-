@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { MACACO, clp, clpCompact } from '../theme.js';
 import { Card, SectionTitle, Dot, Icon } from '../components/ui.jsx';
 import { Screen } from '../components/Screen.jsx';
-import { sendProducto, sendStockUpdate, sincronizarCatalogo } from '../services/webhook.js';
+import { publicarCatalogo } from '../services/supabase.js';
 import { useApp } from '../store.jsx';
 import PedidosTab from './PedidosTab.jsx';
 
@@ -15,7 +15,7 @@ const stepBtn = {
 };
 
 export default function InventarioScreen() {
-  const { productos, caja, agregarProducto, moverStock, registrarMovimiento, editarProducto, registrarCompra } = useApp();
+  const { productos, caja, agregarProducto, moverStock, editarProducto, registrarCompra } = useApp();
   const [vista, setVista]       = useState('stock'); // stock | pedidos
   const [q, setQ]               = useState('');
   const [showAdd, setShowAdd]   = useState(false);
@@ -27,24 +27,20 @@ export default function InventarioScreen() {
   const totalCost = productos.reduce((s, i) => s + i.stock * i.cost, 0);
   const totalSale = productos.reduce((s, i) => s + i.stock * i.price, 0);
 
-  const handleAdd = async (p) => {
+  const handleAdd = (p) => {
     agregarProducto(p);
     setShowAdd(false);
-    await sendProducto(p);
   };
 
-  const handleEdit = async (id, cambios) => {
-    const producto = productos.find(p => p.id === id);
+  const handleEdit = (id, cambios) => {
     editarProducto(id, cambios);
     setEditSheet(null);
-    if (producto) await sendProducto({ ...producto, ...cambios });
   };
 
   const handlePublicar = async () => {
     setPubStatus('loading');
     try {
-      const payload = productos.map(({ id, name, price, stock }) => ({ id, name, price, stock }));
-      await sincronizarCatalogo(payload);
+      await publicarCatalogo(productos);
       setPubStatus('ok');
       setTimeout(() => setPubStatus(null), 3000);
     } catch {
@@ -53,15 +49,16 @@ export default function InventarioScreen() {
     }
   };
 
-  const handleMoverStock = async (id, delta, tipo, montoCaja = 0) => {
+  const handleMoverStock = (id, delta, tipo, montoCaja = 0) => {
     const producto = productos.find(p => p.id === id);
     if (!producto) return;
-    const stockAntes   = producto.stock;
-    const stockDespues = Math.max(0, stockAntes + delta);
-    moverStock(id, delta);
-    registrarMovimiento({ productoId: id, producto: producto.name, tipo, delta: stockDespues - stockAntes, stockAntes, stockDespues });
-    if (montoCaja > 0) registrarCompra({ monto: montoCaja, descripcion: `${producto.name} ×${delta}` });
-    await sendStockUpdate({ ...producto, stock: stockDespues });
+    try {
+      moverStock(id, delta, tipo); // deja su movimiento
+      if (montoCaja > 0) registrarCompra({ monto: montoCaja, descripcion: `${producto.name} ×${delta}` });
+    } catch (err) {
+      alert('No se pudo mover el stock: ' + err.message);
+      return;
+    }
     setStockSheet(null);
   };
 
