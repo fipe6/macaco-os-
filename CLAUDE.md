@@ -35,7 +35,9 @@ src/
     selectors.js   — cálculos de lectura (KPIs, reportes, reposición, meses)
     semillas.js    — CLAVES de app_data y datos iniciales
   store.jsx        — provider: junta ledger + persist; exporta useApp() y los selectores
-  corteza.js       — motor de la Corteza Prefrontal (incluye señales de Kairos)
+  cerebro/         — Corteza Prefrontal: index.js (cerebro: cola y orden) + areas/
+                     finanzas, stock, catalogo, ventas (detectores). Guía: docs/CORTEZA-GUIA.md
+  corteza.js       — entrada única: escanearCorteza(datos)
   screens/         — Home, Venta, Gasto, Finanzas, Inventario (+PedidosTab),
                      Reportes, Corteza, Config, Login
   components/      — BottomNav, IOSDevice, Screen, Cabina, ui (Card, Icon, …)
@@ -51,14 +53,18 @@ Tests: `npm test` (node --test, todos los `src/**/*.test.js`).
 ## Estado actual (v2, 2026-10-27)
 - **Guardado confiable**: venta o pack = ventas + stock + caja + movimientos en un envío.
   Cancelar venta deja movimiento `anulacion`. Indicador "Guardado / N por enviar".
-- **n8n eliminado**: no recibía nada útil. El reporte de WhatsApp se arma en la app (wa.me).
+- **n8n eliminado**: no recibía nada útil.
 - **Finanzas personales eliminadas** (Felipe las maneja aparte). No reintroducir.
-- **Login de una entrada**: solo contraseña de la cuenta del negocio.
+- **Login de una entrada**: usuario `macaco` + la contraseña de la cuenta del negocio.
+- **WhatsApp eliminado** de la app.
 - **Corteza Prefrontal** (se entra desde Home): Radar + ROI + Skill Miner sobre datos reales.
-  Cola priorizada; aprobar/descartar se guarda en `macaco:corteza`. No ejecuta nada.
+  Diseño cerebro + áreas: cada pantalla (Finanzas, Stock, Reportes) muestra lo que el cerebro
+  tiene para su área. Cola priorizada; aprobar/descartar en `macaco:corteza`. No ejecuta nada.
 - **Kairos** (ideas de la suite Kairos llevadas a la tienda): panel Cabina en Home (salud
   /100, telemetría 30 días, vigía, jugada maestra) y Timonel en Corteza. Regla: FUENTE O
   SILENCIO — sin historial suficiente no hay cifra.
+- **Finanzas** con estadísticas y gráficos animados (`domain/finanzas.js`, `components/graficos.jsx`).
+- **Modo demo** (`npm run build:demo`): app completa sin Supabase, para revisar antes de desplegar.
 - selfDestroying SW activo; version check con /version.json.
 
 ## Datos del negocio (viven en `macaco:config`, se editan en Sistema)
