@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { MACACO, clp, clpCompact } from '../theme.js';
 import { Card, SectionTitle, Icon } from '../components/ui.jsx';
 import { Screen } from '../components/Screen.jsx';
-import { useApp, alertasVencimiento, saldoPorCobrar } from '../store.jsx';
+import { useApp } from '../store.jsx';
 import { escanearCorteza } from '../corteza.js';
 
 const PRIORIDAD = {
@@ -29,12 +29,8 @@ export default function CortezaScreen({ go }) {
   const { corteza, decidirCorteza } = app;
 
   const correr = () => {
-    const { productos, ventas, gastos, deudas, caja, config, porCobrar, pasivos } = app;
-    return escanearCorteza({
-      productos, ventas, gastos, deudas, caja, config,
-      porCobrar: porCobrar.map(c => ({ ...c, saldo: saldoPorCobrar(c) })),
-      vencimientos: alertasVencimiento(pasivos, 60),
-    });
+    const { productos, ventas, gastos, deudas, caja, config } = app;
+    return escanearCorteza({ productos, ventas, gastos, deudas, caja, config });
   };
 
   const [escaneo, setEscaneo]       = useState(correr);
@@ -96,7 +92,7 @@ export default function CortezaScreen({ go }) {
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 12, fontWeight: 700 }}>Último escaneo · {hora}</div>
             <div style={{ fontSize: 10.5, color: MACACO.textMuted, marginTop: 3, lineHeight: 1.4 }}>
-              {f.ventas} ventas · {f.productos} productos · {f.gastos} gastos · {f.deudas} deudas · {f.porCobrar} por cobrar
+              {f.ventas} ventas · {f.productos} productos · {f.gastos} gastos · {f.deudas} deudas
               {f.ventas > 0 && <> · {f.diasHistorial} días de historial</>}
             </div>
           </div>

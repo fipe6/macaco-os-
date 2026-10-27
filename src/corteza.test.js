@@ -90,17 +90,6 @@ test('caja bajo colchón es prioridad alta', () => {
   assert.match(c.accion, /Sarek/);
 });
 
-test('cobranza con deuda cara calcula el ahorro de cobrar y abonar', () => {
-  const r = escanearCorteza({
-    caja: 500_000, config: CONFIG, ahora: AHORA,
-    deudas: [{ id: 'd1', who: 'B', amt: 500_000, rate: 10 }],
-    porCobrar: [{ persona: 'Sarek', saldo: 300_000 }, { persona: 'Nass', saldo: 111_000 }, { persona: 'X', saldo: 0 }],
-  });
-  const c = r.decisiones.find(d => d.id === 'cobranza');
-  assert.equal(c.ahorroMensual, 41_100);
-  assert.equal(c.evidencia.length, 2);
-});
-
 test('recompra atrasada detecta clientes fuera de su ciclo', () => {
   const ventas = [venta(40, { cliente: 'Juan' }), venta(30, { cliente: 'Juan' }), venta(20, { cliente: 'Juan' })];
   const r = escanearCorteza({ ventas, config: CONFIG, caja: 500_000, ahora: AHORA });

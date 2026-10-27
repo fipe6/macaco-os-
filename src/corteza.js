@@ -252,41 +252,6 @@ function senalMeta({ ventas, config, ahora }) {
   })];
 }
 
-function senalCobranza({ porCobrar, tasaMax }) {
-  const pendientes = porCobrar.filter(c => c.saldo > 0).sort((a, b) => b.saldo - a.saldo);
-  if (!pendientes.length) return [];
-  const total = pendientes.reduce((s, c) => s + c.saldo, 0);
-  const ahorro = tasaMax > 0 ? total * tasaMax / 100 : null;
-  return [decision({
-    id: 'cobranza',
-    tipo: 'Cobranza',
-    senal: `${clp(total)} por cobrar en ${pendientes.length} persona${pendientes.length > 1 ? 's' : ''}`,
-    evidencia: pendientes.slice(0, 3).map(c => `${c.persona}: ${clp(c.saldo)}`),
-    impactoMensual: ahorro ? Math.round(ahorro) : null,
-    ahorroMensual: ahorro ? Math.round(ahorro) : null,
-    roi: tasaMax > 0 ? `Cobrado y abonado a deuda rinde ${tasaMax}% mensual` : null,
-    riesgo: total >= 100_000 ? 'medio' : 'bajo',
-    prioridad: calcPrioridad(Math.max(ahorro || 0, total >= 200_000 ? 20_000 : 0), 'medio'),
-    accion: `Cobrar primero a ${pendientes[0].persona} (${clp(pendientes[0].saldo)})`,
-    artefacto: 'Recordatorio de cobro por WhatsApp (n8n)',
-    destino: 'personal',
-  })];
-}
-
-function senalesVencimiento({ vencimientos }) {
-  return vencimientos.map(p => decision({
-    id: `vencimiento:${p.id}`,
-    tipo: 'Pasivo',
-    senal: `${p.acreedor} vence en ${p.diasRestantes} días`,
-    evidencia: [`Saldo al vencimiento ${clp(p.saldo)}`, `Fecha ${p.vencimiento}`],
-    riesgo: p.diasRestantes <= 30 ? 'alto' : 'medio',
-    prioridad: p.diasRestantes <= 30 ? 'alta' : 'media',
-    accion: `Separar ${clp(p.saldo)} en un fondo reservado antes del ${p.vencimiento}`,
-    artefacto: 'Meta de ahorro en Finanzas personales',
-    destino: 'personal',
-  }));
-}
-
 function senalesClientes({ ventas, ahora }) {
   const out = [];
   const clientes = {};
@@ -376,11 +341,10 @@ function senalGastos({ gastos, ventas, ahora }) {
 }
 
 // ── Escaneo completo ─────────────────────────────────────────────────────────
-// `porCobrar` viene con `saldo` ya calculado y `vencimientos` es la salida de
-// alertasVencimiento() del store, para no duplicar reglas de cálculo.
+// `porCobrar` (opcional) viene con `saldo` ya calculado.
 export function escanearCorteza({
   productos = [], ventas = [], gastos = [], deudas = [], caja = 0,
-  config = {}, porCobrar = [], vencimientos = [], ahora = Date.now(),
+  config = {}, porCobrar = [], ahora = Date.now(),
 } = {}) {
   const t = typeof ahora === 'number' ? ahora : new Date(ahora).getTime();
   const vel = velocidades(ventas, t);
@@ -410,7 +374,7 @@ export function escanearCorteza({
     fecha: new Date(t).toISOString(),
     fuentes: {
       ventas: ventas.length, productos: productos.length, gastos: gastos.length,
-      deudas: deudas.length, porCobrar: porCobrar.length, vencimientos: vencimientos.length,
+      deudas: deudas.length, porCobrar: porCobrar.length,
       diasHistorial: Math.floor(vel.diasHistorial),
     },
     decisiones,

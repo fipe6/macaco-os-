@@ -3,17 +3,15 @@ import { MACACO, clp, clpCompact } from '../theme.js';
 import { Card, SectionTitle, Progress, Trend, Dot, Icon } from '../components/ui.jsx';
 import { Screen, GreetingHeader } from '../components/Screen.jsx';
 import { useApp } from '../store.jsx';
-import { ventasDelDia, ventasDelMes, getDiasDelMes, sumarTotal, sumarMargen, MESES, alertasVencimiento, saldoPorCobrar } from '../store.jsx';
+import { ventasDelDia, ventasDelMes, getDiasDelMes, sumarTotal, sumarMargen, MESES } from '../store.jsx';
 import { escanearCorteza } from '../corteza.js';
 
 export default function HomeScreen({ go }) {
-  const { ventas, productos, deudas, caja, config, gastos, porCobrar, pasivos, corteza } = useApp();
+  const { ventas, productos, deudas, caja, config, gastos, corteza } = useApp();
 
   const cortezaPendientes = useMemo(() => escanearCorteza({
     productos, ventas, gastos, deudas, caja, config,
-    porCobrar: porCobrar.map(c => ({ ...c, saldo: saldoPorCobrar(c) })),
-    vencimientos: alertasVencimiento(pasivos, 60),
-  }).decisiones.filter(d => !corteza[d.id]), [productos, ventas, gastos, deudas, caja, config, porCobrar, pasivos, corteza]);
+  }).decisiones.filter(d => !corteza[d.id]), [productos, ventas, gastos, deudas, caja, config, corteza]);
   const cortezaAltas = cortezaPendientes.filter(d => d.prioridad === 'alta').length;
 
   const hoy        = new Date();
