@@ -4,7 +4,7 @@
 App de gestión interna para Macaco Suplementos (tienda de suplementos deportivos, Chile).
 Dueño: Felipe (la usa junto a su papá con UNA sola cuenta compartida).
 Stack: React 18 + Vite (sin librerías UI externas).
-Deploy: https://macaco-os.vercel.app | Repo: https://github.com/fipe6/macaco-os-
+Deploy: https://macaco-os.vercel.app | Repo: https://github.com/makakosuplementos-ship-it/macaco-os- (antes fipe6/macaco-os-; el catálogo está en makakosuplementos-ship-it/makako-control, ver docs/CATALOGO-WEB.md y docs/PLAN-CATALOGO.md)
 Rama `v2` = versión 2.0 en preparación (preview en Vercel); `main` = producción.
 
 ## Backend y persistencia
