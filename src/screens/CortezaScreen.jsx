@@ -3,7 +3,7 @@ import { MACACO, clp, clpCompact } from '../theme.js';
 import { Card, SectionTitle, Icon } from '../components/ui.jsx';
 import { Screen } from '../components/Screen.jsx';
 import { useApp } from '../store.jsx';
-import { escanearCorteza } from '../corteza.js';
+import { escanearCorteza, AREAS } from '../corteza.js';
 import { timonel } from '../domain/kairos.js';
 
 const PRIORIDAD = {
@@ -25,7 +25,7 @@ const FILTROS = [
   { id: 'descartada', label: 'Descartadas' },
 ];
 
-export default function CortezaScreen({ go }) {
+export default function CortezaScreen({ go, areaInicial = null }) {
   const app = useApp();
   const { corteza, decidirCorteza } = app;
 
@@ -37,6 +37,7 @@ export default function CortezaScreen({ go }) {
   const [escaneo, setEscaneo]       = useState(correr);
   const [escaneando, setEscaneando] = useState(false);
   const [filtro, setFiltro]         = useState('pendiente');
+  const [area, setArea]             = useState(areaInicial); // null = todas
 
   const reEscanear = () => {
     setEscaneando(true);
@@ -62,7 +63,8 @@ export default function CortezaScreen({ go }) {
   const artefactos   = new Set(pendientes.map(d => d.artefacto).filter(Boolean)).size;
   const hora = new Date(escaneo.fecha).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
   const f = escaneo.fuentes;
-  const lista = grupos[filtro];
+  const lista = area ? grupos[filtro].filter(d => d.area === area) : grupos[filtro];
+  const pendArea = (id) => pendientes.filter(d => d.area === id).length;
 
   return (
     <Screen>
@@ -108,7 +110,26 @@ export default function CortezaScreen({ go }) {
         <Pilar titulo="Skill Miner" valor={artefactos} sub={artefactos === 1 ? 'artefacto' : 'artefactos'} color={MACACO.success} />
       </div>
 
-      <Timonel productos={app.productos} ventas={app.ventas} />
+      {/* Áreas del cerebro */}
+      <div style={{ display: 'flex', gap: 6, overflowX: 'auto', margin: '0 -16px 12px', padding: '0 16px', scrollbarWidth: 'none' }}>
+        {[{ id: null, nombre: 'Todas' }, ...AREAS].map(a => {
+          const on = area === a.id;
+          const n = a.id ? pendArea(a.id) : pendientes.length;
+          return (
+            <button key={a.nombre} onClick={() => setArea(a.id)} style={{
+              flexShrink: 0, padding: '7px 12px', borderRadius: 999, cursor: 'pointer', fontFamily: 'inherit',
+              fontSize: 11.5, fontWeight: 700,
+              background: on ? 'rgba(245,197,24,0.14)' : 'transparent',
+              color: on ? MACACO.primary : MACACO.textDim,
+              border: `1px solid ${on ? 'rgba(245,197,24,0.45)' : MACACO.border}`,
+            }}>
+              {a.nombre}{n > 0 && <span style={{ marginLeft: 6, color: on ? MACACO.primary : MACACO.textMuted }}>{n}</span>}
+            </button>
+          );
+        })}
+      </div>
+
+      {(area === null || area === 'stock') && <Timonel productos={app.productos} ventas={app.ventas} />}
 
       {escaneo.decisiones.length === 0 && Object.keys(corteza).length === 0 ? (
         <EstadoVacio onClick={reEscanear} escaneando={escaneando} />

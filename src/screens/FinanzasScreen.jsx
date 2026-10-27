@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { MACACO, clp, clpCompact } from '../theme.js';
 import { Card, SectionTitle, Progress, Dot, Icon } from '../components/ui.jsx';
 import { Screen } from '../components/Screen.jsx';
+import { CerebroArea } from '../components/CerebroArea.jsx';
 import { useApp } from '../store.jsx';
 import { gastosDelMes, MESES } from '../store.jsx';
 import { resultadoMes, historico, gastosPorCategoria, acumuladoMes, puntoEquilibrio, diasDeCaja } from '../domain/finanzas.js';
@@ -61,6 +62,8 @@ export default function FinanzasScreen({ go }) {
         </div>
         <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.02em', marginTop: 4 }}>Finanzas</div>
       </div>
+
+      <CerebroArea areas={['finanzas']} go={go} />
 
       {/* Caja */}
       <Card style={{ marginBottom: 14 }} padding={18}>

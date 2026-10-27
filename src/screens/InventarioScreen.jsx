@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { MACACO, clp, clpCompact } from '../theme.js';
 import { Card, SectionTitle, Dot, Icon } from '../components/ui.jsx';
 import { Screen } from '../components/Screen.jsx';
+import { CerebroArea } from '../components/CerebroArea.jsx';
 import { publicarCatalogo } from '../services/supabase.js';
 import { useApp } from '../store.jsx';
 import PedidosTab from './PedidosTab.jsx';
@@ -14,7 +15,7 @@ const stepBtn = {
   fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center',
 };
 
-export default function InventarioScreen() {
+export default function InventarioScreen({ go }) {
   const { productos, caja, agregarProducto, moverStock, editarProducto, registrarCompra } = useApp();
   const [vista, setVista]       = useState('stock'); // stock | pedidos
   const [q, setQ]               = useState('');
@@ -70,6 +71,8 @@ export default function InventarioScreen() {
         </div>
         <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.02em', marginTop: 4 }}>Inventario</div>
       </div>
+
+      <CerebroArea areas={['stock', 'catalogo']} go={go} />
 
       <div style={{
         display: 'flex', background: MACACO.card,

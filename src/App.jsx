@@ -129,7 +129,9 @@ function AppInner() {
   const [screen, setScreen]           = useState('home');
   const [updateListo, setUpdateListo] = useState(false);
   const { cargandoDB, errorDB, sync, reintentarSync } = useApp();
-  const go = (s) => setScreen(s);
+  const [areaCorteza, setAreaCorteza] = useState(null);
+  // go('corteza', 'stock') abre la Corteza filtrada en esa área del cerebro.
+  const go = (s, area = null) => { setScreen(s); setAreaCorteza(area); };
 
   // Verificación de versión — fuerza recarga si hay versión nueva en el servidor.
   // Funciona aunque el service worker sirva código viejo.
@@ -180,7 +182,7 @@ function AppInner() {
     venta:      <VentaScreen go={go} />,
     gasto:      <GastoScreen go={go} />,
     finanzas:   <FinanzasScreen go={go} />,
-    corteza:    <CortezaScreen go={go} />,
+    corteza:    <CortezaScreen go={go} areaInicial={areaCorteza} />,
     inventario: <InventarioScreen go={go} />,
     reportes:   <ReportesScreen go={go} />,
     config:     <ConfigScreen go={go} />,

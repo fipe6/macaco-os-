@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { MACACO, clp, clpCompact } from '../theme.js';
 import { Card, SectionTitle, Progress, Trend, Dot } from '../components/ui.jsx';
 import { Screen } from '../components/Screen.jsx';
+import { CerebroArea } from '../components/CerebroArea.jsx';
 import { useApp } from '../store.jsx';
 import {
   ventasDelDia, ventasDelMes, ventasUltimos7Dias,
@@ -12,7 +13,7 @@ import {
 
 const TABS = ['Diario', 'Semanal', 'Mensual', 'Clientes'];
 
-export default function ReportesScreen() {
+export default function ReportesScreen({ go }) {
   const { ventas, movimientos, productos, config, gastos } = useApp();
   const [tab,     setTab]     = useState('Mensual');
   return (
@@ -21,6 +22,8 @@ export default function ReportesScreen() {
         <div style={{ fontSize: 11, color: MACACO.primary, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase' }}>Análisis</div>
         <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.02em', marginTop: 4 }}>Reportes</div>
       </div>
+
+      <CerebroArea areas={['ventas']} go={go} />
 
       {/* Tabs */}
       <div style={{

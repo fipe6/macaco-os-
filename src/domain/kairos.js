@@ -88,10 +88,11 @@ export function timonel({ productos = [], ventas = [], ahora = Date.now() } = {}
     };
   });
 
-  // Los mejores scores con venta real se escalan (máx. 3, y solo si superan la mediana).
+  // Los mejores scores con venta real se escalan (máx. 3, sobre la mediana y con
+  // al menos 3 ventas: con 1–2 no hay ritmo que escalar).
   const conVenta = ranking.filter(r => r.unidades > 0).sort((a, b) => b.score - a.score);
   const mediana = conVenta.length ? conVenta[Math.floor(conVenta.length / 2)].score : 0;
-  conVenta.slice(0, 3).forEach(r => { if (r.clase === 'mantener' && r.score >= mediana) r.clase = 'escalar'; });
+  conVenta.slice(0, 3).forEach(r => { if (r.clase === 'mantener' && r.score >= mediana && r.unidades >= 3) r.clase = 'escalar'; });
 
   const orden = { escalar: 0, mantener: 1, vigilar: 2, recortar: 3, 'sin-datos': 4 };
   ranking.sort((a, b) => (orden[a.clase] - orden[b.clase]) || (b.score - a.score));
