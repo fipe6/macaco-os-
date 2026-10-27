@@ -59,8 +59,8 @@ function LoadingDB() {
   );
 }
 
-// Estado del guardado: verde = todo en Supabase; amarillo = cambios en el
-// celular por enviar (se reintenta solo); rojo = no se pudo cargar de Supabase.
+// Estado del guardado: amarillo = cambios en el celular por enviar (se
+// reintenta solo; tocar = enviar ahora); rojo = no se pudo cargar de Supabase.
 function DBStatusBadge({ error, sync, onReintentar }) {
   if (!DB_HABILITADO) return null;
 
@@ -95,11 +95,12 @@ function DBStatusBadge({ error, sync, onReintentar }) {
     );
   }
 
-  const pendiente = sync.pendientes > 0;
-  const color = pendiente ? MACACO.primary : MACACO.success;
+  // Todo guardado: no estorba. El estado completo está en Sistema y en el Home.
+  if (sync.pendientes === 0) return null;
+  const color = MACACO.primary;
   return (
     <button
-      onClick={pendiente ? onReintentar : undefined}
+      onClick={onReintentar}
       style={{
         position: 'absolute', top: 12, right: 14, zIndex: 50,
         display: 'flex', alignItems: 'center', gap: 5,
@@ -108,8 +109,7 @@ function DBStatusBadge({ error, sync, onReintentar }) {
         border: `1px solid ${color}40`,
         fontSize: 9.5, fontWeight: 700, letterSpacing: '0.06em',
         color, fontFamily: 'inherit',
-        cursor: pendiente ? 'pointer' : 'default',
-        pointerEvents: pendiente ? 'auto' : 'none',
+        cursor: 'pointer',
       }}
     >
       <span style={{
@@ -117,7 +117,7 @@ function DBStatusBadge({ error, sync, onReintentar }) {
         background: color, boxShadow: `0 0 6px ${color}`,
         display: 'inline-block',
       }} />
-      {pendiente ? (sync.enviando ? 'ENVIANDO…' : `${sync.pendientes} POR ENVIAR`) : 'GUARDADO'}
+      {sync.enviando ? 'ENVIANDO…' : `${sync.pendientes} POR ENVIAR`}
     </button>
   );
 }
@@ -210,7 +210,7 @@ function AppInner() {
           {cargandoDB && <LoadingDB />}
 
           {/* Badge de estado de conexión */}
-          {!cargandoDB && <DBStatusBadge error={errorDB} sync={sync} onReintentar={reintentarSync} />}
+          {!cargandoDB && (screen !== 'home' || errorDB) && <DBStatusBadge error={errorDB} sync={sync} onReintentar={reintentarSync} />}
 
           <div
             key={screen}

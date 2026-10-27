@@ -5,14 +5,24 @@ import { Screen, GreetingHeader } from '../components/Screen.jsx';
 import { useApp } from '../store.jsx';
 import { ventasDelDia, ventasDelMes, getDiasDelMes, sumarTotal, sumarMargen, MESES } from '../store.jsx';
 import { escanearCorteza } from '../corteza.js';
+import { saludNegocio, telemetria, vigias, timonel } from '../domain/kairos.js';
+import { Cabina } from '../components/Cabina.jsx';
 
 export default function HomeScreen({ go }) {
-  const { ventas, productos, deudas, caja, config, gastos, corteza } = useApp();
+  const { ventas, productos, deudas, caja, config, gastos, corteza, sync } = useApp();
 
   const cortezaPendientes = useMemo(() => escanearCorteza({
     productos, ventas, gastos, deudas, caja, config,
   }).decisiones.filter(d => !corteza[d.id]), [productos, ventas, gastos, deudas, caja, config, corteza]);
   const cortezaAltas = cortezaPendientes.filter(d => d.prioridad === 'alta').length;
+
+  // Kairos: salud, telemetría, vigía y jugada — todo calculado de los datos reales.
+  const kairos = useMemo(() => ({
+    salud: saludNegocio({ productos, ventas, deudas, caja, config }),
+    serie: telemetria(ventas, { dias: 30 }),
+    vigia: vigias({ ventas, productos }),
+    jugada: timonel({ productos, ventas }).jugada,
+  }), [productos, ventas, deudas, caja, config]);
 
   const hoy        = new Date();
   const mesNombre  = MESES[hoy.getMonth()];
@@ -63,6 +73,11 @@ export default function HomeScreen({ go }) {
     },
   ];
 
+  const h = hoy.getHours();
+  const saludo = h < 12 ? 'Buenos días' : h < 20 ? 'Buenas tardes' : 'Buenas noches';
+  const syncColor = sync.pendientes > 0 ? MACACO.primary : MACACO.success;
+  const syncTexto = sync.pendientes > 0 ? `${sync.pendientes} por enviar` : 'Guardado';
+
   const fechaStr = hoy.toLocaleDateString('es-CL', { weekday: 'short', day: 'numeric', month: 'short' })
     .replace(/^\w/, c => c.toUpperCase());
 
@@ -70,16 +85,18 @@ export default function HomeScreen({ go }) {
     <Screen>
       <GreetingHeader
         title="Macaco OS"
-        subtitle="Buenos días, Felipe"
+        subtitle={saludo}
         right={
           <>
             <div style={{ fontSize: 12, color: MACACO.textMuted, fontWeight: 500 }}>{fechaStr}</div>
-            <div style={{ fontSize: 11, color: MACACO.success, fontWeight: 600, marginTop: 2, display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'flex-end' }}>
-              <Dot color={MACACO.success} size={6} /> En vivo
+            <div style={{ fontSize: 11, color: syncColor, fontWeight: 600, marginTop: 2, display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'flex-end' }}>
+              <Dot color={syncColor} size={6} /> {syncTexto}
             </div>
           </>
         }
       />
+
+      <Cabina {...kairos} pendientes={cortezaPendientes.length} altas={cortezaAltas} go={go} />
 
       {/* KPI cards */}
       <div style={{
@@ -132,30 +149,6 @@ export default function HomeScreen({ go }) {
         }}>
           <span>Faltan <b style={{ color: '#fff', fontWeight: 600 }}>{clp(faltanMes)}</b></span>
           <span>{diasRestantes} días restantes</span>
-        </div>
-      </Card>
-
-      {/* Corteza prefrontal — acceso al motor de decisiones */}
-      <Card onClick={() => go('corteza')} style={{ marginBottom: 14 }} padding={14}
-            accent={cortezaAltas > 0 ? 'rgba(245,197,24,0.3)' : undefined}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: 10, flexShrink: 0, fontSize: 17,
-            background: 'rgba(245,197,24,0.12)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>🧠</div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 10.5, color: MACACO.primary, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
-              Corteza prefrontal
-            </div>
-            <div style={{ fontSize: 13, marginTop: 3, color: '#fff' }}>
-              {cortezaPendientes.length === 0
-                ? 'Sin decisiones pendientes'
-                : <><b>{cortezaPendientes.length}</b> {cortezaPendientes.length > 1 ? 'decisiones' : 'decisión'} por revisar
-                    {cortezaAltas > 0 && <span style={{ color: MACACO.danger }}> · {cortezaAltas} alta{cortezaAltas > 1 ? 's' : ''}</span>}</>}
-            </div>
-          </div>
-          <span style={{ color: MACACO.textMuted }}><Icon.arrowRight size={16} /></span>
         </div>
       </Card>
 

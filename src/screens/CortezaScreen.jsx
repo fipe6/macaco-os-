@@ -4,6 +4,7 @@ import { Card, SectionTitle, Icon } from '../components/ui.jsx';
 import { Screen } from '../components/Screen.jsx';
 import { useApp } from '../store.jsx';
 import { escanearCorteza } from '../corteza.js';
+import { timonel } from '../domain/kairos.js';
 
 const PRIORIDAD = {
   alta:  { label: 'Alta',  color: MACACO.danger,  bg: 'rgba(255,77,77,0.12)' },
@@ -107,6 +108,8 @@ export default function CortezaScreen({ go }) {
         <Pilar titulo="Skill Miner" valor={artefactos} sub={artefactos === 1 ? 'artefacto' : 'artefactos'} color={MACACO.success} />
       </div>
 
+      <Timonel productos={app.productos} ventas={app.ventas} />
+
       {escaneo.decisiones.length === 0 && Object.keys(corteza).length === 0 ? (
         <EstadoVacio onClick={reEscanear} escaneando={escaneando} />
       ) : (
@@ -156,6 +159,73 @@ export default function CortezaScreen({ go }) {
         stock y no muestra datos de ejemplo: todo sale de tus ventas, stock, deudas, gastos y cobros.
       </div>
     </Screen>
+  );
+}
+
+const CLASES = {
+  escalar:    { label: '▲ Escalar',  color: MACACO.success },
+  mantener:   { label: '= Mantener', color: MACACO.textDim },
+  vigilar:    { label: '⚠ Vigilar',  color: MACACO.orange },
+  recortar:   { label: '▼ Recortar', color: MACACO.danger },
+  'sin-datos': { label: '· Sin datos', color: MACACO.textMuted },
+};
+
+// Timonel (de Kairos): dónde poner el próximo peso de compra.
+function Timonel({ productos, ventas }) {
+  const [abierto, setAbierto] = useState(false);
+  const t = useMemo(() => timonel({ productos, ventas }), [productos, ventas]);
+  const filas = t.ranking.filter(r => r.clase !== 'sin-datos');
+  const visibles = abierto ? filas : filas.slice(0, 5);
+  return (
+    <>
+      <SectionTitle right={t.listo ? `últimos ${t.ventanaDias} días` : null}>🧭 Timonel · próximo peso</SectionTitle>
+      <Card padding={0} style={{ marginBottom: 18 }}>
+        {!t.listo ? (
+          <div style={{ padding: 16, fontSize: 12, color: MACACO.textMuted, lineHeight: 1.5 }}>
+            El Timonel necesita 14 días de ventas para opinar (llevas {t.historialDias}). Fuente o silencio.
+          </div>
+        ) : (
+          <>
+            {t.jugada && (
+              <div style={{ padding: '12px 14px', borderBottom: `1px solid ${MACACO.borderSoft}`, background: 'rgba(245,197,24,0.06)' }}>
+                <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '0.16em', color: MACACO.primary }}>JUGADA MAESTRA</div>
+                <div style={{ fontSize: 14, fontWeight: 700, marginTop: 4, lineHeight: 1.35 }}>{t.jugada.titulo}</div>
+                {t.jugada.porque.map((p, i) => (
+                  <div key={i} style={{ fontSize: 11.5, color: MACACO.textDim, marginTop: 3 }}>· {p}</div>
+                ))}
+              </div>
+            )}
+            {visibles.map((r, i) => {
+              const c = CLASES[r.clase];
+              return (
+                <div key={r.id} style={{
+                  display: 'grid', gridTemplateColumns: '1fr auto', gap: 4, padding: '10px 14px',
+                  borderBottom: i === visibles.length - 1 ? 'none' : `1px solid ${MACACO.borderSoft}`,
+                }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.nombre}</div>
+                    <div style={{ fontSize: 10.5, color: MACACO.textMuted, marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
+                      {r.unidades > 0
+                        ? <>ROI {Math.round(r.roi * 100)}% · {r.rotacion.toFixed(2)} u/día · {r.tendencia > 0 ? '+' : ''}{Math.round(r.tendencia * 100)}% sem.</>
+                        : <>Sin ventas · {clp(r.capital)} parados</>}
+                      {r.cobertura != null && <> · stock {Math.floor(r.cobertura)} d</>}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 10.5, fontWeight: 800, color: c.color, alignSelf: 'center', whiteSpace: 'nowrap' }}>{c.label}</div>
+                </div>
+              );
+            })}
+            {filas.length > 5 && (
+              <button onClick={() => setAbierto(a => !a)} style={{
+                width: '100%', padding: 10, background: 'transparent', border: 'none',
+                borderTop: `1px solid ${MACACO.borderSoft}`, color: MACACO.textDim,
+                fontSize: 11.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+              }}>{abierto ? 'Ver menos' : `Ver los ${filas.length} productos`}</button>
+            )}
+          </>
+        )}
+      </Card>
+    </>
   );
 }
 
@@ -259,7 +329,13 @@ function DecisionCard({ d, estado, go, onDecidir }) {
 
       <div style={{ marginTop: 12 }}>
         <div style={{ fontSize: 9.5, color: MACACO.textMuted, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Acción sugerida</div>
-        <div style={{ fontSize: 13, fontWeight: 600, marginTop: 4, lineHeight: 1.4 }}>{d.accion}</div>
+        {d.acciones ? (
+          <ol style={{ margin: '4px 0 0', paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {d.acciones.map((a, i) => <li key={i} style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.4 }}>{a}</li>)}
+          </ol>
+        ) : (
+          <div style={{ fontSize: 13, fontWeight: 600, marginTop: 4, lineHeight: 1.4 }}>{d.accion}</div>
+        )}
         <div style={{ fontSize: 11, color: MACACO.cyan, marginTop: 6 }}>Artefacto: {d.artefacto}</div>
       </div>
 
