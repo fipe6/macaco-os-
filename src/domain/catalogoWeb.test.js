@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { idCatalogo, catalogoPublico, precioPublico } from './catalogoWeb.js';
+import { idCatalogo, catalogoPublico, precioPublico, fichasCatalogo, ENLACES } from './catalogoWeb.js';
 
 test('enlaza por nombre aunque tenga tildes y mayúsculas', () => {
   assert.equal(idCatalogo({ name: 'Cafeína ostrovit' }), 'cafeina');
@@ -34,4 +34,27 @@ test('precio raro o vacío no se publica', () => {
   assert.equal(precioPublico(-5), null);
   assert.equal(precioPublico(1999.5), null);
   assert.equal(precioPublico(undefined), null);
+});
+
+test('fichas del catálogo: foto con ruta de /catalogo/ y sabores de las variantes', () => {
+  const f = fichasCatalogo({ products: [
+    { id: 'musclewhey', name: 'MuscleWhey', brand: 'Hexacore', size: '64 porciones', image: 'assets/musclewhey.webp',
+      variants: [{ flavor: 'Hell Chocolate' }, { flavor: 'Cookies Extreme' }] },
+    { id: 'gummy', name: 'Gummy', flavor: 'Frutilla', image: 'https://x.test/g.jpg' },
+  ] });
+  assert.equal(f.musclewhey.foto, '/catalogo/assets/musclewhey.webp');
+  assert.deepEqual(f.musclewhey.sabores, ['Hell Chocolate', 'Cookies Extreme']);
+  assert.equal(f.gummy.foto, 'https://x.test/g.jpg');
+  assert.deepEqual(f.gummy.sabores, ['Frutilla']);
+});
+
+test('cada enlace de Macaco OS tiene su ficha y foto en el catálogo publicado', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const cat = JSON.parse(await readFile(new URL('../../public/catalogo/catalogo.json', import.meta.url), 'utf8'));
+  const fichas = fichasCatalogo(cat);
+  for (const id of Object.values(ENLACES)) {
+    assert.ok(fichas[id]?.foto, `falta foto para ${id}`);
+    const archivo = fichas[id].foto.replace('/catalogo/', '../../public/catalogo/');
+    await readFile(new URL(archivo, import.meta.url));
+  }
 });

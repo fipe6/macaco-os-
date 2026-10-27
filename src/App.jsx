@@ -126,7 +126,7 @@ function DBStatusBadge({ error, sync, onReintentar }) {
   );
 }
 
-const APP_VERSION = '1793141511';
+const APP_VERSION = '1793143264';
 
 function AppInner() {
   const [screen, setScreen]           = useState('cerebro');
@@ -202,7 +202,7 @@ function AppInner() {
       alignItems: 'flex-start', padding: isMobile ? 0 : '40px 16px 80px',
     }}>
       <IOSDevice width={390} height={844} dark>
-        <div style={{ position: 'absolute', inset: 0, background: MACACO.bg, overflow: 'hidden' }}>
+        <div id="capa-hojas" style={{ position: 'absolute', inset: 0, background: MACACO.bg, overflow: 'hidden' }}>
 
           {/* Banner de actualización disponible */}
           {updateListo && (

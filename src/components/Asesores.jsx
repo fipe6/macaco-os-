@@ -5,6 +5,7 @@ import { MACACO } from '../theme.js';
 import { useApp } from '../store.jsx';
 import { ASESORES, AREAS_ASESORES, deArea } from '../asesores/asesores.js';
 import { armarPrompt } from '../asesores/prompt.js';
+import { Capa } from './Capa.jsx';
 
 const FORMAS = {
   triangulo: { clipPath: 'polygon(50% 4%, 97% 94%, 3% 94%)' },
@@ -83,7 +84,7 @@ export function AsesorSheet({ asesor, onClose }) {
     }
   };
 
-  return (
+  return (<Capa>
     <div style={{ position: 'absolute', inset: 0, zIndex: 100, animation: 'fadeUp 220ms' }}>
       <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)' }} />
       <div role="dialog" aria-label={asesor.nombre} style={{
@@ -150,7 +151,7 @@ export function AsesorSheet({ asesor, onClose }) {
           borderRadius: 10, padding: 10, fontSize: 11, fontFamily: 'JetBrains Mono, ui-monospace, monospace', resize: 'vertical',
         }} />
       </div>
-    </div>
+    </div></Capa>
   );
 }
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { MACACO, clp } from '../theme.js';
 import { Icon } from '../components/ui.jsx';
 import { Screen } from '../components/Screen.jsx';
@@ -8,6 +8,10 @@ import { publicarCatalogo } from '../services/supabase.js';
 import { useApp } from '../store.jsx';
 import PedidosTab from './PedidosTab.jsx';
 import { subirFoto } from '../services/fotos.js';
+import { useFichasCatalogo } from '../services/catalogoLocal.js';
+import { idCatalogo } from '../domain/catalogoWeb.js';
+import { fichaProducto } from '../domain/fichaProducto.js';
+import { Capa } from '../components/Capa.jsx';
 
 const stepBtn = {
   width: 34, height: 34, borderRadius: 8,
@@ -18,7 +22,10 @@ const stepBtn = {
 };
 
 export default function InventarioScreen({ go }) {
-  const { productos, caja, config, agregarProducto, moverStock, editarProducto, registrarCompra } = useApp();
+  const { productos, caja, config, ventas, movimientos, pedidos, agregarProducto, moverStock, editarProducto, registrarCompra } = useApp();
+  const fichasWeb = useFichasCatalogo();
+  // Foto del catálogo web para los productos que no tienen una propia (solo se muestra).
+  const webDe = (p) => fichasWeb[idCatalogo(p)] || null;
   const [vista, setVista]       = useState('stock'); // stock | pedidos
   const [q, setQ]               = useState('');
   const [showAdd, setShowAdd]   = useState(false);
@@ -143,7 +150,7 @@ export default function InventarioScreen({ go }) {
         <div style={{ textAlign: 'center', color: MACACO.textMuted, fontSize: 13, padding: '30px 0' }}>Nada por aquí.</div>
       )}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 18 }}>
-        {filtered.map(p => <ProductoCard key={p.id} p={p} alerta={alerta} onClick={() => setFicha(p.id)} />)}
+        {filtered.map(p => <ProductoCard key={p.id} p={p} web={webDe(p)} alerta={alerta} onClick={() => setFicha(p.id)} />)}
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: MACACO.textDim, padding: '0 4px 6px' }}>
@@ -181,7 +188,8 @@ export default function InventarioScreen({ go }) {
 
       {abierto && (
         <ProductoSheet
-          p={abierto} alerta={alerta}
+          p={abierto} alerta={alerta} web={webDe(abierto)}
+          datos={{ ventas, movimientos, pedidos }}
           onClose={() => setFicha(null)}
           onFoto={(imagen) => editarProducto(abierto.id, { imagen })}
           onMover={() => { setStockSheet(abierto); setFicha(null); }}
@@ -209,10 +217,11 @@ export function estadoCatalogo(stock, alerta = 3) {
   return { id: 'disponible', label: 'Disponible', color: MACACO.verde };
 }
 
-function Foto({ p, radio = 16, alto }) {
+function Foto({ p, web, radio = 16, alto }) {
   const iniciales = p.name.split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
-  return p.imagen ? (
-    <img src={p.imagen} alt={p.name} loading="lazy" style={{
+  const src = p.imagen || web?.foto;
+  return src ? (
+    <img src={src} alt={p.name} loading="lazy" style={{
       width: '100%', height: alto || 'auto', aspectRatio: alto ? undefined : '1 / 1', objectFit: 'cover',
       borderRadius: radio, display: 'block', background: '#111',
     }} />
@@ -228,7 +237,7 @@ function Foto({ p, radio = 16, alto }) {
   );
 }
 
-function ProductoCard({ p, alerta, onClick }) {
+function ProductoCard({ p, web, alerta, onClick }) {
   const e = estadoCatalogo(p.stock, alerta);
   const margen = p.price > 0 && p.cost > 0 ? Math.round((p.price - p.cost) / p.price * 100) : null;
   return (
@@ -237,7 +246,7 @@ function ProductoCard({ p, alerta, onClick }) {
       opacity: e.id === 'agotado' ? 0.6 : 1, minWidth: 0,
     }}>
       <div style={{ position: 'relative' }}>
-        <Foto p={p} />
+        <Foto p={p} web={web} />
         <span style={{
           position: 'absolute', left: 8, bottom: 8, padding: '3px 8px', borderRadius: 999, fontSize: 10.5, fontWeight: 700,
           background: 'rgba(0,0,0,0.72)', color: e.color, backdropFilter: 'blur(6px)',
@@ -254,11 +263,17 @@ function ProductoCard({ p, alerta, onClick }) {
   );
 }
 
-function ProductoSheet({ p, alerta, onClose, onFoto, onMover, onEditar }) {
+const TIPO_MOV = { venta: 'Venta', anulacion: 'Venta anulada', compra: 'Ingreso', baja: 'Baja', auspicio: 'Auspicio', correccion: 'Corrección', ajuste: 'Ajuste' };
+const fechaCorta = (f) => {
+  const d = new Date(f);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('es-CL', { day: 'numeric', month: 'short' });
+};
+
+function ProductoSheet({ p, web, datos, alerta, onClose, onFoto, onMover, onEditar }) {
   const [subiendo, setSubiendo] = useState(false);
   const [error, setError] = useState(null);
   const e = estadoCatalogo(p.stock, alerta);
-  const margen = p.price > 0 && p.cost > 0 ? Math.round((p.price - p.cost) / p.price * 100) : null;
+  const f = useMemo(() => fichaProducto(p, datos), [p, datos]);
 
   const elegir = async (ev) => {
     const archivo = ev.target.files?.[0];
@@ -270,38 +285,112 @@ function ProductoSheet({ p, alerta, onClose, onFoto, onMover, onEditar }) {
     finally { setSubiendo(false); }
   };
 
+  const enCatalogo = !!idCatalogo(p);
+  const fotoCatalogo = !p.imagen && web?.foto;
+
   return (
     <SheetBase onClose={onClose}>
       <div style={{ position: 'relative' }}>
-        <Foto p={p} radio={20} alto={260} />
+        <Foto p={p} web={web} radio={20} alto={300} />
+        {fotoCatalogo && (
+          <span style={{
+            position: 'absolute', left: 10, top: 10, padding: '4px 10px', borderRadius: 999, fontSize: 10.5, fontWeight: 700,
+            background: 'rgba(0,0,0,0.72)', color: MACACO.textDim,
+          }}>Foto del catálogo</span>
+        )}
         <label style={{
           position: 'absolute', right: 10, bottom: 10, padding: '9px 14px', borderRadius: 999, cursor: 'pointer',
           background: MACACO.lavanda, color: '#0A0A0F', fontSize: 12, fontWeight: 700, opacity: subiendo ? 0.7 : 1,
         }}>
-          {subiendo ? 'Subiendo…' : p.imagen ? 'Cambiar foto' : '＋ Agregar foto'}
+          {subiendo ? 'Subiendo…' : p.imagen || fotoCatalogo ? 'Cambiar foto' : '＋ Agregar foto'}
           <input type="file" accept="image/*" onChange={elegir} disabled={subiendo} style={{ display: 'none' }} />
         </label>
       </div>
       {error && <div style={{ fontSize: 12, color: MACACO.danger, marginTop: 10 }}>{error}</div>}
 
-      <div style={{ fontSize: 24, fontWeight: 400, letterSpacing: '-0.03em', marginTop: 16, lineHeight: 1.15 }}>{p.name}</div>
-      <div style={{ display: 'flex', gap: 22, marginTop: 14 }}>
+      {web?.marca && <div style={{ fontSize: 11, color: MACACO.primary, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', marginTop: 16 }}>{web.marca}{web.categoria ? ` · ${web.categoria}` : ''}</div>}
+      <div style={{ fontSize: 24, fontWeight: 400, letterSpacing: '-0.03em', marginTop: web?.marca ? 4 : 16, lineHeight: 1.15 }}>{p.name}</div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10, marginTop: 14 }}>
         <Dato label="Costo" valor={clp(p.cost)} />
         <Dato label="Precio" valor={clp(p.price)} />
         <Dato label="Stock" valor={`${p.stock} u`} color={e.color} />
-        {margen != null && <Dato label="Margen" valor={`${margen}%`} />}
+        <Dato label="Margen" valor={f.margen != null ? `${f.margen}%` : '—'} />
       </div>
 
-      <div style={{ marginTop: 16, padding: '12px 14px', borderRadius: 14, background: MACACO.card, fontSize: 12.5, color: MACACO.textDim, lineHeight: 1.45 }}>
-        En el catálogo se ve como <b style={{ color: e.color }}>{e.label}</b>{p.imagen ? ', con su foto.' : ', sin foto.'}
-        {' '}Cambia solo cuando vendes o mueves stock.
-      </div>
+      <Bloque titulo="Plata">
+        <Linea label="Ganas por unidad" valor={clp(f.gananciaUnidad)} color={f.gananciaUnidad >= 0 ? MACACO.success : MACACO.danger} />
+        <Linea label="Stock a costo" valor={clp(f.valorCosto)} />
+        <Linea label="Stock a precio de venta (aprox.)" valor={`~${clp(f.valorVenta)}`} color={MACACO.cyan} />
+      </Bloque>
+
+      <Bloque titulo="Ventas">
+        {f.vendidas ? (
+          <>
+            <Linea label="Unidades vendidas" valor={`${f.vendidas} u`} />
+            <Linea label="Últimos 30 días" valor={`${f.vendidas30} u`} />
+            <Linea label="Total cobrado" valor={clp(f.ingresos)} />
+            <Linea label="Ganancia aprox. (al costo actual)" valor={clp(f.gananciaVendida)} color={f.gananciaVendida >= 0 ? MACACO.success : MACACO.danger} />
+            {f.ultimaVenta && <Linea label="Última venta" valor={fechaCorta(f.ultimaVenta)} />}
+          </>
+        ) : <div style={{ fontSize: 12.5, color: MACACO.textMuted, padding: '4px 0' }}>Todavía no tiene ventas registradas.</div>}
+        {f.enCamino > 0 && <Linea label="En camino (pedido)" valor={`${f.enCamino} u${f.llegaEl ? ` · llega ${fechaCorta(f.llegaEl + 'T12:00:00')}` : ''}`} color={MACACO.lavanda} />}
+      </Bloque>
+
+      {f.movimientos.length > 0 && (
+        <Bloque titulo="Últimos movimientos">
+          {f.movimientos.map(m => (
+            <Linea key={m.id || m.fecha} label={`${fechaCorta(m.fecha)} · ${TIPO_MOV[m.tipo] || m.tipo}`}
+              valor={`${m.delta > 0 ? '+' : ''}${m.delta} u${m.stockDespues != null ? ` → ${m.stockDespues}` : ''}`}
+              color={m.delta > 0 ? MACACO.success : MACACO.text} />
+          ))}
+        </Bloque>
+      )}
+
+      <Bloque titulo="Catálogo web">
+        <div style={{ fontSize: 12.5, color: MACACO.textDim, lineHeight: 1.5 }}>
+          {enCatalogo ? (
+            <>Se ve como <b style={{ color: e.color }}>{e.label}</b>, a {clp(p.price)}
+              {p.imagen ? ', con tu foto.' : web?.foto ? ', con la foto del catálogo.' : ', sin foto.'}
+              {' '}Cambia solo cuando vendes o mueves stock.</>
+          ) : <>Este producto no está en el catálogo web.</>}
+        </div>
+        {web?.presentacion && <Linea label="Presentación" valor={web.presentacion} />}
+        {web?.sabores?.length > 0 && <Linea label={web.sabores.length > 1 ? 'Sabores' : 'Sabor'} valor={web.sabores.join(' · ')} />}
+        {web?.descripcion && <div style={{ fontSize: 12.5, color: MACACO.textDim, lineHeight: 1.5, marginTop: 8 }}>{web.descripcion}</div>}
+        {web?.beneficios?.length > 0 && (
+          <ul style={{ margin: '8px 0 0', paddingLeft: 18, fontSize: 12.5, color: MACACO.textDim, lineHeight: 1.5 }}>
+            {web.beneficios.map(b => <li key={b}>{b}</li>)}
+          </ul>
+        )}
+        {enCatalogo && (
+          <a href="/catalogo/#catalogo" target="_blank" rel="noopener" style={{ display: 'inline-block', marginTop: 10, fontSize: 12.5, color: MACACO.lavanda }}>Ver el catálogo ↗</a>
+        )}
+      </Bloque>
 
       <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
         <button onClick={onMover} style={botonSec}>Mover stock</button>
         <button onClick={onEditar} style={botonSec}>Editar precio</button>
       </div>
     </SheetBase>
+  );
+}
+
+function Bloque({ titulo, children }) {
+  return (
+    <div style={{ marginTop: 14, padding: '12px 14px', borderRadius: 14, background: MACACO.card }}>
+      <div style={{ fontSize: 10.5, color: MACACO.textMuted, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 6 }}>{titulo}</div>
+      {children}
+    </div>
+  );
+}
+
+function Linea({ label, valor, color }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '5px 0', fontSize: 12.5 }}>
+      <span style={{ color: MACACO.textDim }}>{label}</span>
+      <span style={{ fontWeight: 700, color: color || MACACO.text, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{valor}</span>
+    </div>
   );
 }
 
@@ -320,7 +409,7 @@ function Dato({ label, valor, color }) {
 }
 
 function SheetBase({ onClose, children }) {
-  return (
+  return (<Capa>
     <div style={{ position: 'absolute', inset: 0, zIndex: 100, animation: 'fadeUp 220ms cubic-bezier(.2,.7,.2,1)' }}>
       <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
       <div style={{
@@ -336,7 +425,7 @@ function SheetBase({ onClose, children }) {
         <div style={{ width: 36, height: 4, borderRadius: 999, background: 'rgba(255,255,255,0.18)', margin: '0 auto 16px' }}/>
         {children}
       </div>
-    </div>
+    </div></Capa>
   );
 }
 

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { MACACO, clp, clpCompact } from '../theme.js';
 import { Card, SectionTitle, Dot, Icon } from '../components/ui.jsx';
+import { Capa } from '../components/Capa.jsx';
 import {
   useApp, hoyISO, diasEntre, sumarDias, resumenProveedores, sugerenciasReposicion, PROVEEDORES_BASE,
 } from '../store.jsx';
@@ -304,7 +305,7 @@ function btn(color, solid = false) {
 }
 
 function Sheet({ titulo, subtitulo, onClose, children }) {
-  return (
+  return (<Capa>
     <div style={{ position: 'absolute', inset: 0, zIndex: 100, animation: 'fadeUp 220ms' }}>
       <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
       <div style={{
@@ -328,7 +329,7 @@ function Sheet({ titulo, subtitulo, onClose, children }) {
         </div>
         {children}
       </div>
-    </div>
+    </div></Capa>
   );
 }
 

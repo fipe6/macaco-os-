@@ -5,6 +5,7 @@ import { Screen } from '../components/Screen.jsx';
 import { useApp } from '../store.jsx';
 import { useAuth } from '../AuthProvider.jsx';
 import { DEMO, reiniciarDemo } from '../demo.js';
+import { Capa } from '../components/Capa.jsx';
 
 export default function ConfigScreen() {
   const { config, setConfig, caja, ajustarCaja, sync, reintentarSync } = useApp();
@@ -186,7 +187,7 @@ function EditMetasSheet({ config, onClose, onSave }) {
     </div>
   );
 
-  return (
+  return (<Capa>
     <div style={{ position: 'absolute', inset: 0, zIndex: 100, animation: 'fadeUp 220ms' }}>
       <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
       <div style={{
@@ -252,6 +253,6 @@ function EditMetasSheet({ config, onClose, onSave }) {
           GUARDAR CAMBIOS
         </button>
       </div>
-    </div>
+    </div></Capa>
   );
 }

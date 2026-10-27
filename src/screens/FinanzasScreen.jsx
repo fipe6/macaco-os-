@@ -9,6 +9,7 @@ import { gastosDelMes, MESES } from '../store.jsx';
 import { resultadoMes, historico, gastosPorCategoria, acumuladoMes, puntoEquilibrio, diasDeCaja, patrimonio } from '../domain/finanzas.js';
 import { Patrimonio } from '../components/Patrimonio.jsx';
 import { NumeroAnimado, Cascada, BarrasMeses, BarrasCategorias, LineasAcumuladas, Leyenda } from '../components/graficos.jsx';
+import { Capa } from '../components/Capa.jsx';
 
 const rotulo = { fontSize: 11, color: MACACO.textDim, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase' };
 
@@ -411,7 +412,7 @@ function PagoSheet({ deuda, onClose, onPagar, caja }) {
   const sinFondos  = montoNum > caja;
   const canPagar   = montoNum > 0 && !sinFondos;
 
-  return (
+  return (<Capa>
     <div style={{ position: 'absolute', inset: 0, zIndex: 100, animation: 'fadeUp 220ms' }}>
       <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
       <div style={{
@@ -497,13 +498,13 @@ function PagoSheet({ deuda, onClose, onPagar, caja }) {
           {canPagar ? `PAGAR ${clp(montoNum)}` : 'INGRESA UN MONTO'}
         </button>
       </div>
-    </div>
+    </div></Capa>
   );
 }
 
 function AjusteCajaSheet({ cajaActual, onClose, onSave }) {
   const [valor, setValor] = useState(cajaActual);
-  return (
+  return (<Capa>
     <div style={{ position: 'absolute', inset: 0, zIndex: 100, animation: 'fadeUp 220ms' }}>
       <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
       <div style={{
@@ -543,7 +544,7 @@ function AjusteCajaSheet({ cajaActual, onClose, onSave }) {
           GUARDAR
         </button>
       </div>
-    </div>
+    </div></Capa>
   );
 }
 
@@ -575,7 +576,7 @@ function DeudaFormSheet({ deuda, onClose, onSave, onDelete }) {
     { id: 'low',    label: 'Baja',    color: MACACO.textMuted },
   ];
 
-  return (
+  return (<Capa>
     <div style={{ position: 'absolute', inset: 0, zIndex: 100, animation: 'fadeUp 220ms' }}>
       <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
       <div style={{
@@ -717,6 +718,6 @@ function DeudaFormSheet({ deuda, onClose, onSave, onDelete }) {
           </button>
         )}
       </div>
-    </div>
+    </div></Capa>
   );
 }

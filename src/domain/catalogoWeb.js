@@ -44,3 +44,24 @@ export const precioPublico = (precio) => {
   const n = Number(precio);
   return Number.isInteger(n) && n > 0 ? n : null;
 };
+
+// Lo que el catálogo web dice de cada producto (foto, marca, presentación…),
+// leído de /catalogo/catalogo.json. Solo para mostrar en la app: no se guarda.
+export function fichasCatalogo(catalogo, base = '/catalogo/') {
+  const salida = {};
+  (catalogo?.products || []).forEach(c => {
+    const variantes = (c.variants || []).map(v => v.flavor).filter(Boolean);
+    salida[c.id] = {
+      id: c.id,
+      nombre: c.name,
+      marca: c.brand || null,
+      categoria: c.category || null,
+      presentacion: c.size || null,
+      sabores: variantes.length ? variantes : (c.flavor ? [c.flavor] : []),
+      descripcion: c.description || null,
+      beneficios: c.benefits || [],
+      foto: c.image ? (/^https:\/\//.test(c.image) ? c.image : base + c.image.replace(/^\.?\//, '')) : null,
+    };
+  });
+  return salida;
+}
