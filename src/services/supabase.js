@@ -154,6 +154,10 @@ export async function pushInventarioRows(productos) {
     activo:       true,
     updated_at:   new Date().toISOString(),
   }));
+  // La foto (columna imagen_url) solo viaja si algún producto del envío tiene una.
+  // PostgREST exige las mismas columnas en todas las filas del upsert.
+  const conFoto = (p) => p.imagen && !p.imagen.startsWith('data:');
+  if (productos.some(conFoto)) filas.forEach((f, i) => { f.imagen_url = conFoto(productos[i]) ? productos[i].imagen : null; });
   return upsertRows('inventario', filas, 'producto');
 }
 
