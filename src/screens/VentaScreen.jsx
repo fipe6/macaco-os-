@@ -127,7 +127,7 @@ export default function VentaScreen({ go }) {
     }
     setSent(true);
     setSending(false);
-    setTimeout(() => { go('home'); }, 1400);
+    setTimeout(() => { go('cerebro'); }, 1400);
   };
 
   return (

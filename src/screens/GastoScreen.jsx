@@ -53,7 +53,7 @@ export default function GastoScreen({ go }) {
     });
     setSent(true);
     setSending(false);
-    setTimeout(() => go('home'), 1400);
+    setTimeout(() => go('cerebro'), 1400);
   };
 
   const accentColor = tipo === 'negocio' ? MACACO.orange : MACACO.cyan;

@@ -3,7 +3,7 @@ import { Icon } from './ui.jsx';
 
 export function BottomNav({ active, go }) {
   const items = [
-    { id: 'home',       label: 'Home',       icon: Icon.home },
+    { id: 'cerebro',    label: 'Cerebro',    icon: Icon.brain },
     { id: 'venta',      label: 'Venta',      icon: Icon.plus, big: true },
     { id: 'finanzas',   label: 'Finanzas',   icon: Icon.wallet },
     { id: 'inventario', label: 'Stock',      icon: Icon.box },

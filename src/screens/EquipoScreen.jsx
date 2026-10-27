@@ -8,12 +8,12 @@ export default function EquipoScreen({ go }) {
   return (
     <Screen>
       <div style={{ padding: '6px 0 14px' }}>
-        <button onClick={() => go('home')} style={{
+        <button onClick={() => go('cerebro')} style={{
           background: 'transparent', border: 'none', color: MACACO.textMuted, padding: 0, cursor: 'pointer', fontFamily: 'inherit',
           fontSize: 11, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', gap: 5,
         }}>
           <span style={{ display: 'inline-block', transform: 'rotate(180deg)', lineHeight: 0 }}><Icon.arrowRight size={11} /></span>
-          Volver
+          Volver al cerebro
         </button>
         <div style={{ fontSize: 11, color: '#9984D8', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', marginTop: 10 }}>12 asesores</div>
         <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.02em', marginTop: 4 }}>Tu equipo</div>

@@ -69,7 +69,7 @@ export default function CortezaScreen({ go, areaInicial = null }) {
   return (
     <Screen>
       <div style={{ padding: '6px 0 14px' }}>
-        <button onClick={() => go('home')} style={{
+        <button onClick={() => go('cerebro')} style={{
           background: 'transparent', border: 'none', color: MACACO.textMuted,
           padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 11,
           fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase',
@@ -78,7 +78,7 @@ export default function CortezaScreen({ go, areaInicial = null }) {
           <span style={{ display: 'inline-block', transform: 'rotate(180deg)', lineHeight: 0 }}>
             <Icon.arrowRight size={11} />
           </span>
-          Home
+          Cerebro
         </button>
         <div style={{ fontSize: 11, color: MACACO.primary, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', marginTop: 10 }}>
           Motor agéntico

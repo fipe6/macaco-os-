@@ -12,6 +12,8 @@ import ConfigScreen from './screens/ConfigScreen.jsx';
 import GastoScreen from './screens/GastoScreen.jsx';
 import CortezaScreen from './screens/CortezaScreen.jsx';
 import EquipoScreen from './screens/EquipoScreen.jsx';
+import PortadaScreen from './screens/PortadaScreen.jsx';
+import AreaScreen from './screens/AreaScreen.jsx';
 import { DB_HABILITADO } from './services/supabase.js';
 import { useApp } from './store.jsx';
 import { DEMO } from './demo.js';
@@ -127,7 +129,7 @@ function DBStatusBadge({ error, sync, onReintentar }) {
 const APP_VERSION = '1793119414';
 
 function AppInner() {
-  const [screen, setScreen]           = useState('home');
+  const [screen, setScreen]           = useState('cerebro');
   const [updateListo, setUpdateListo] = useState(false);
   const { cargandoDB, errorDB, sync, reintentarSync } = useApp();
   const [areaCorteza, setAreaCorteza] = useState(null);
@@ -185,6 +187,8 @@ function AppInner() {
     finanzas:   <FinanzasScreen go={go} />,
     corteza:    <CortezaScreen go={go} areaInicial={areaCorteza} />,
     equipo:     <EquipoScreen go={go} />,
+    cerebro:    <PortadaScreen go={go} />,
+    area:       <AreaScreen go={go} areaId={areaCorteza} />,
     inventario: <InventarioScreen go={go} />,
     reportes:   <ReportesScreen go={go} />,
     config:     <ConfigScreen go={go} />,
@@ -216,7 +220,7 @@ function AppInner() {
           {cargandoDB && <LoadingDB />}
 
           {/* Badge de estado de conexión */}
-          {!cargandoDB && (screen !== 'home' || errorDB) && <DBStatusBadge error={errorDB} sync={sync} onReintentar={reintentarSync} />}
+          {!cargandoDB && ((screen !== 'home' && screen !== 'cerebro') || errorDB) && <DBStatusBadge error={errorDB} sync={sync} onReintentar={reintentarSync} />}
 
           <div
             key={screen}
@@ -230,7 +234,7 @@ function AppInner() {
             {screens[screen]}
           </div>
 
-          {screen === 'home' && !cargandoDB && (
+          {(screen === 'home' || screen === 'cerebro') && !cargandoDB && (
             <div style={{
               position: 'absolute', right: 18, bottom: 102, zIndex: 30,
               display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10,
@@ -281,7 +285,7 @@ function AppInner() {
             </div>
           )}
 
-          <BottomNav active={screen === 'corteza' ? 'home' : screen} go={go} />
+          <BottomNav active={['home', 'corteza', 'equipo', 'area', 'gasto'].includes(screen) ? 'cerebro' : screen} go={go} />
         </div>
       </IOSDevice>
     </div>

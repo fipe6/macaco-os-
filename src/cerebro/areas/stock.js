@@ -105,9 +105,9 @@ function senalTimonel({ productos, ventas, deudas }, { ahora }) {
       roi: fila?.roi != null ? `${Math.round(fila.roi * 100)}% sobre costo en ventas reales` : null,
       riesgo: j.tipo === 'liberar' ? 'medio' : 'bajo',
       prioridad: j.tipo === 'liberar' && fila.capital >= 300_000 ? 'alta' : 'media',
-      accion: j.tipo === 'comprar' ? 'Armar el próximo pedido empezando por este producto'
-        : j.tipo === 'liberar' ? 'Pack o promo con este producto y pausar su recompra'
-        : 'Destacarlo en redes y en cada venta esta semana',
+      accion: j.tipo === 'comprar' ? `Armar el próximo pedido empezando por ${fila.nombre}`
+        : j.tipo === 'liberar' ? `Pack o promo con ${fila.nombre} y pausar su recompra`
+        : `Destacar ${fila.nombre} en redes y en cada venta esta semana`,
       artefacto: j.tipo === 'comprar' ? 'Pedido a proveedor en Stock' : 'Promo / pack en redes',
       destino: 'inventario',
     }));
