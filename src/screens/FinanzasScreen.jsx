@@ -6,13 +6,14 @@ import { CerebroArea } from '../components/CerebroArea.jsx';
 import { Asesores } from '../components/Asesores.jsx';
 import { useApp } from '../store.jsx';
 import { gastosDelMes, MESES } from '../store.jsx';
-import { resultadoMes, historico, gastosPorCategoria, acumuladoMes, puntoEquilibrio, diasDeCaja } from '../domain/finanzas.js';
+import { resultadoMes, historico, gastosPorCategoria, acumuladoMes, puntoEquilibrio, diasDeCaja, patrimonio } from '../domain/finanzas.js';
+import { Patrimonio } from '../components/Patrimonio.jsx';
 import { NumeroAnimado, Cascada, BarrasMeses, BarrasCategorias, LineasAcumuladas, Leyenda } from '../components/graficos.jsx';
 
 const rotulo = { fontSize: 11, color: MACACO.textDim, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase' };
 
 export default function FinanzasScreen({ go }) {
-  const { deudas, caja, config, gastos, ventas, pagarDeuda, ajustarCaja, agregarDeuda, editarDeuda, eliminarDeuda } = useApp();
+  const { deudas, caja, config, gastos, ventas, productos, pedidos, pagarDeuda, ajustarCaja, agregarDeuda, editarDeuda, eliminarDeuda } = useApp();
   const [pagoSheet, setPagoSheet]   = useState(null);
   const [ajusteCaja, setAjusteCaja] = useState(false);
   const [deudaSheet, setDeudaSheet] = useState(null); // null | 'new' | deuda
@@ -37,6 +38,7 @@ export default function FinanzasScreen({ go }) {
     };
   }, [ventas, gastos, caja]); // eslint-disable-line
   const gMes = gastosDelMes(gastos, hoy);
+  const patri = useMemo(() => patrimonio({ caja, productos, pedidos, deudas }), [caja, productos, pedidos, deudas]);
 
   const cajaSaludColor = caja >= config.colchonMinimo * 2 ? MACACO.success : caja >= config.colchonMinimo ? MACACO.primary : MACACO.danger;
   const cajaSalud      = caja >= config.colchonMinimo * 2 ? 'Holgada' : caja >= config.colchonMinimo ? 'Justa' : 'Bajo el colchón';
@@ -100,6 +102,9 @@ export default function FinanzasScreen({ go }) {
           {dias != null && <span>Alcanza para <b style={{ color: MACACO.text }}>{dias > 365 ? '+1 año' : `${dias} días`}</b> de gastos</span>}
         </div>
       </Card>
+
+      {/* De qué está hecho el patrimonio */}
+      <Patrimonio datos={patri} />
 
       {/* Resultado del mes */}
       <Card style={{ marginBottom: 14 }} padding={16}>

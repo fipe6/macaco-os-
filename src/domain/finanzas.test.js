@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resultadoMes, historico, gastosPorCategoria, acumuladoMes, puntoEquilibrio, diasDeCaja } from './finanzas.js';
+import { resultadoMes, historico, gastosPorCategoria, acumuladoMes, puntoEquilibrio, diasDeCaja, patrimonio } from './finanzas.js';
 
 const OCT = new Date('2026-10-20T12:00:00');
 const v = (dia, total, costo, cantidad = 1, extra = {}) => ({
@@ -51,4 +51,40 @@ test('días de caja con el gasto promedio de 30 días', () => {
   const ahora = new Date('2026-10-20T12:00:00').getTime();
   assert.equal(diasDeCaja(300_000, [g(10, 30_000)], ahora), 300);
   assert.equal(diasDeCaja(300_000, [], ahora), null);
+});
+
+test('patrimonio: caja + en camino pagado + stock a costo; margen aparte; deuda', () => {
+  const r = patrimonio({
+    caja: 200_000,
+    productos: [
+      { id: 'a', name: 'A', stock: 10, cost: 9_000, price: 17_000 },
+      { id: 'b', name: 'B', stock: 2, cost: 20_000, price: 36_000 },
+      { id: 'c', name: 'C', stock: 0, cost: 5_000, price: 9_000 },
+    ],
+    pedidos: [
+      { estado: 'pedido', pagado: 50_000 },
+      { estado: 'pedido', pagado: 0 },
+      { estado: 'recibido', pagado: 99_000 },
+      { estado: 'cancelado', pagado: 99_000 },
+    ],
+    deudas: [{ amt: 500_000 }, { amt: 500_000 }],
+  });
+  assert.equal(r.disponible, 200_000);
+  assert.equal(r.enCamino, 50_000);
+  assert.equal(r.stockCosto, 130_000);
+  assert.equal(r.stockVenta, 242_000);
+  assert.equal(r.incierto, 112_000);
+  assert.equal(r.seguro, 380_000);
+  assert.equal(r.deuda, 1_000_000);
+  assert.equal(r.neto, -620_000);
+  assert.equal(r.netoSiVendes, -508_000);
+  assert.equal(r.cubre.seguro, 0.38);
+  assert.deepEqual(r.productos.map(p => p.id), ['a', 'b']);
+  assert.deepEqual(r.productos[0], { id: 'a', nombre: 'A', costo: 90_000, venta: 170_000 });
+});
+
+test('patrimonio sin deuda no inventa porcentaje', () => {
+  const r = patrimonio({ caja: 100, productos: [], pedidos: [], deudas: [] });
+  assert.equal(r.cubre, null);
+  assert.equal(r.neto, 100);
 });

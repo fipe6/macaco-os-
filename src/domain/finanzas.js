@@ -74,3 +74,36 @@ export function diasDeCaja(caja, gastos, ahora = Date.now()) {
   if (g <= 0) return null;
   return Math.floor(Math.max(0, caja) / (g / 30));
 }
+
+// De qué está hecho el patrimonio del negocio, a hoy.
+// Seguro = plata y mercadería que ya es nuestra: caja + pedidos ya pagados que
+// vienen en camino + stock a costo. Incierto = lo que se ganaría si se vende
+// todo el stock a precio de venta (solo es real cuando se vende).
+export function patrimonio({ caja = 0, productos = [], pedidos = [], deudas = [] }) {
+  const stock = productos.filter(p => (Number(p.stock) || 0) > 0);
+  const stockCosto = stock.reduce((s, p) => s + p.stock * (Number(p.cost) || 0), 0);
+  const stockVenta = stock.reduce((s, p) => s + p.stock * (Number(p.price) || 0), 0);
+  const enCamino = pedidos
+    .filter(p => p.estado === 'pedido' || p.estado === 'en_camino')
+    .reduce((s, p) => s + (Number(p.pagado) || 0), 0);
+  const deuda = deudas.reduce((s, d) => s + (Number(d.amt) || 0), 0);
+  const disponible = Math.max(0, Number(caja) || 0);
+  const seguro = disponible + enCamino + stockCosto;
+  const incierto = Math.max(0, stockVenta - stockCosto);
+  const productosDetalle = stock
+    .map(p => ({ id: p.id, nombre: p.name, costo: p.stock * (Number(p.cost) || 0), venta: p.stock * (Number(p.price) || 0) }))
+    .sort((a, b) => b.costo - a.costo);
+  return {
+    disponible, enCamino, stockCosto, stockVenta, incierto, deuda, seguro,
+    neto: seguro - deuda,
+    netoSiVendes: seguro + incierto - deuda,
+    // Parte de la deuda que se cubre (null si no hay deuda).
+    cubre: deuda > 0 ? {
+      disponible: disponible / deuda,
+      conCamino: (disponible + enCamino) / deuda,
+      seguro: seguro / deuda,
+      siVendes: (seguro + incierto) / deuda,
+    } : null,
+    productos: productosDetalle,
+  };
+}
