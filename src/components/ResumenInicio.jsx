@@ -56,13 +56,13 @@ export function ResumenInicio({ r, caja, colchon = 0, go, cerebro = true }) {
         </div>
       )}
 
-      {/* En camino + cerebro */}
+      {/* Llegadas pendientes de marcar + cerebro */}
       <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
         {r.pedidosEnCamino > 0 && (
           <button onClick={() => go('inventario')} style={{
             flex: 1, background: MACACO.card, border: `1px solid ${MACACO.border}`, borderRadius: 14, padding: '11px 12px',
             color: MACACO.text, fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', textAlign: 'left',
-          }}>📦 {r.pedidosEnCamino} pedido{r.pedidosEnCamino > 1 ? 's' : ''} en camino</button>
+          }}>⏳ {r.pedidosEnCamino} llegada{r.pedidosEnCamino > 1 ? 's' : ''} por marcar</button>
         )}
         {cerebro && <button onClick={() => go('cerebro')} style={{
           flex: 1, background: 'transparent', border: `1px solid ${MACACO.lavanda}`, borderRadius: 14, padding: '11px 12px',
