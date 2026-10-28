@@ -129,7 +129,7 @@ function DBStatusBadge({ error, sync, onReintentar }) {
 const APP_VERSION = '1793143264';
 
 function AppInner() {
-  const [screen, setScreen]           = useState('cerebro');
+  const [screen, setScreen]           = useState('home');
   const [updateListo, setUpdateListo] = useState(false);
   const { cargandoDB, errorDB, sync, reintentarSync } = useApp();
   const [areaCorteza, setAreaCorteza] = useState(null);
@@ -285,7 +285,7 @@ function AppInner() {
             </div>
           )}
 
-          <BottomNav active={['home', 'corteza', 'equipo', 'area', 'gasto'].includes(screen) ? 'cerebro' : screen} go={go} />
+          <BottomNav active={['cerebro', 'corteza', 'equipo', 'area', 'gasto'].includes(screen) ? 'home' : screen} go={go} />
         </div>
       </IOSDevice>
     </div>

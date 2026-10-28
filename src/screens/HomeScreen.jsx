@@ -10,9 +10,11 @@ import { Cabina } from '../components/Cabina.jsx';
 import { DEMO } from '../demo.js';
 import { Asesores } from '../components/Asesores.jsx';
 import { ASESORES } from '../asesores/asesores.js';
+import { resumenInicio } from '../domain/inicio.js';
 
 export default function HomeScreen({ go }) {
-  const { ventas, productos, deudas, caja, config, gastos, corteza, sync } = useApp();
+  const { ventas, productos, deudas, caja, config, gastos, corteza, sync, pedidos } = useApp();
+  const resumen = useMemo(() => resumenInicio({ ventas, config, pedidos }), [ventas, config, pedidos]);
 
   const cortezaPendientes = useMemo(() => escanearCorteza({
     productos, ventas, gastos, deudas, caja, config,
@@ -28,53 +30,9 @@ export default function HomeScreen({ go }) {
   }), [productos, ventas, deudas, caja, config]);
 
   const hoy        = new Date();
-  const mesNombre  = MESES[hoy.getMonth()];
-  const añoActual  = hoy.getFullYear();
-
-  const vHoy  = ventasDelDia(ventas);
-  const vMes  = ventasDelMes(ventas);
-
-  const totalHoy      = sumarTotal(vHoy);
-  const totalMes      = sumarTotal(vMes);
-  const margenHoy     = sumarMargen(vHoy);
-  const pctMeta       = (totalMes / config.metaMensual) * 100;
-  const pctMetaDiaria = (totalHoy / config.metaDiaria)  * 100;
-  const faltanMes     = Math.max(0, config.metaMensual - totalMes);
-
-  const valorInventario = productos.reduce((s, p) => s + p.stock * p.cost, 0);
   const deudaConInteres = deudas.filter(d => d.rate > 0);
   const totalDeudaInt   = deudaConInteres.reduce((s, d) => s + d.amt, 0);
   const interesTotal    = deudaConInteres.reduce((s, d) => s + d.amt * d.rate / 100, 0);
-
-  const diasRestantes = new Date(añoActual, hoy.getMonth() + 1, 0).getDate() - hoy.getDate();
-
-  const kpis = [
-    {
-      label:  'Ventas hoy',
-      value:  clp(totalHoy),
-      sub:    vHoy.length > 0 ? `${vHoy.length} venta${vHoy.length > 1 ? 's' : ''}` : 'Sin ventas',
-      accent: MACACO.success,
-    },
-    {
-      label:  'Meta diaria',
-      value:  clp(config.metaDiaria),
-      sub:    pctMetaDiaria.toFixed(0) + '% logrado',
-      accent: pctMetaDiaria >= 100 ? MACACO.success : MACACO.danger,
-      deficit: totalHoy < config.metaDiaria ? clpCompact(totalHoy - config.metaDiaria) : null,
-    },
-    {
-      label:  'Caja',
-      value:  clp(caja),
-      sub:    'Disponible',
-      accent: caja >= 500_000 ? MACACO.primary : MACACO.danger,
-    },
-    {
-      label:  'Inventario',
-      value:  clpCompact(valorInventario),
-      sub:    `Costo · ${productos.length} SKUs`,
-      accent: MACACO.cyan,
-    },
-  ];
 
   const h = hoy.getHours();
   const saludo = h < 12 ? 'Buenos días' : h < 20 ? 'Buenas tardes' : 'Buenas noches';
@@ -99,6 +57,8 @@ export default function HomeScreen({ go }) {
         }
       />
 
+      <ResumenInicio r={resumen} caja={caja} colchon={config.colchonMinimo} go={go} />
+
       <Cabina {...kairos} pendientes={cortezaPendientes.length} altas={cortezaAltas} go={go} />
 
       <Asesores ids={['jefe-gabinete', 'contador', 'abogado', 'marketing']} titulo="Tu equipo" />
@@ -106,60 +66,6 @@ export default function HomeScreen({ go }) {
         width: '100%', margin: '-6px 0 16px', padding: '10px', background: 'transparent', border: `1px dashed ${MACACO.border}`,
         borderRadius: 12, color: MACACO.textDim, fontFamily: 'inherit', fontSize: 12, fontWeight: 700, cursor: 'pointer',
       }}>Ver los {ASESORES.length} asesores</button>
-
-      {/* KPI cards */}
-      <div style={{
-        display: 'flex', gap: 10, overflowX: 'auto', padding: '0 0 6px',
-        margin: '0 -16px 18px', paddingLeft: 16, paddingRight: 16, scrollbarWidth: 'none',
-      }}>
-        {kpis.map((k, i) => (
-          <div key={i} style={{
-            flex: '0 0 auto', width: 158,
-            background: MACACO.card, border: `1px solid ${MACACO.border}`,
-            borderRadius: 16, padding: 14,
-            boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
-            position: 'relative', overflow: 'hidden',
-          }}>
-            <div style={{
-              position: 'absolute', top: 0, left: 0, width: 3, height: 28,
-              background: k.accent, borderRadius: '0 4px 4px 0',
-              boxShadow: `0 0 12px ${k.accent}`,
-            }} />
-            <div style={{ fontSize: 10.5, color: MACACO.textDim, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-              {k.label}
-            </div>
-            <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', marginTop: 6, fontVariantNumeric: 'tabular-nums' }}>
-              {k.value}
-            </div>
-            <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-              {k.deficit
-                ? <span style={{ color: MACACO.danger, fontSize: 11, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{k.deficit}</span>
-                : <span style={{ fontSize: 11, color: MACACO.textMuted, fontWeight: 500 }}>{k.sub}</span>
-              }
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Progress meta mensual */}
-      <Card style={{ marginBottom: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>
-          <div style={{ fontSize: 13, fontWeight: 600 }}>{mesNombre} {añoActual}</div>
-          <div style={{ fontSize: 11, color: MACACO.textMuted, fontWeight: 600, letterSpacing: '0.08em' }}>META · {clpCompact(config.metaMensual)}</div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 12 }}>
-          <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.03em', fontVariantNumeric: 'tabular-nums' }}>{clp(totalMes)}</div>
-          <div style={{ fontSize: 14, color: MACACO.primary, fontWeight: 600 }}>{pctMeta.toFixed(1)}%</div>
-        </div>
-        <Progress value={pctMeta} color={MACACO.primary} height={10} />
-        <div style={{
-          marginTop: 10, display: 'flex', justifyContent: 'space-between',
-          fontSize: 11.5, color: MACACO.textDim, fontVariantNumeric: 'tabular-nums',
-        }}>
-          <span>Faltan <b style={{ color: '#fff', fontWeight: 600 }}>{clp(faltanMes)}</b></span>
-          <span>{diasRestantes} días restantes</span>
-        </div>
-      </Card>
 
       {/* Alerta deuda con interés */}
       {deudaConInteres.length > 0 && (
@@ -442,5 +348,78 @@ function ProximosList({ upcoming, totalSoFar, metaDiaria, metaMensual }) {
         </div>
       )}
     </>
+  );
+}
+
+// Lo primero al abrir: caja, hoy contra ayer, cómo va el mes y lo que viene en camino.
+function ResumenInicio({ r, caja, colchon = 0, go }) {
+  const etiqueta = { fontSize: 10.5, color: MACACO.textDim, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' };
+  const cifra = (tam) => ({ fontSize: tam, fontWeight: 700, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' });
+  const cajaBaja = colchon > 0 && caja < colchon;
+  const metaOk = r.pctMes != null && r.pctMes >= 100;
+  return (
+    <div style={{ marginBottom: 16 }}>
+      {/* Caja: lo más importante */}
+      <button onClick={() => go('finanzas')} style={{
+        width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit', color: MACACO.text,
+        background: MACACO.card, border: `1px solid ${cajaBaja ? MACACO.danger : MACACO.border}`, borderRadius: 18, padding: '16px 18px',
+      }}>
+        <div style={etiqueta}>Caja</div>
+        <div style={{ ...cifra(34), marginTop: 4, color: cajaBaja ? MACACO.danger : MACACO.text }}>{clp(caja)}</div>
+        <div style={{ fontSize: 11.5, color: cajaBaja ? MACACO.danger : MACACO.textMuted, marginTop: 4 }}>
+          {cajaBaja ? `Bajo el colchón de ${clp(colchon)}` : 'Disponible hoy'}
+        </div>
+      </button>
+
+      {/* Hoy y ayer */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
+        <div style={{ background: MACACO.card, border: `1px solid ${MACACO.border}`, borderRadius: 16, padding: 14 }}>
+          <div style={etiqueta}>Hoy</div>
+          <div style={{ ...cifra(22), marginTop: 4 }}>{clp(r.hoy)}</div>
+          <div style={{ fontSize: 11, color: MACACO.textMuted, marginTop: 4 }}>
+            {r.ventasHoy ? `${r.ventasHoy} venta${r.ventasHoy > 1 ? 's' : ''}` : 'Sin ventas aún'}
+            {r.pctDia != null && <> · <span style={{ color: r.pctDia >= 100 ? MACACO.success : MACACO.textDim, fontWeight: 600 }}>{r.pctDia}% de la meta</span></>}
+          </div>
+        </div>
+        <div style={{ background: MACACO.card, border: `1px solid ${MACACO.border}`, borderRadius: 16, padding: 14 }}>
+          <div style={etiqueta}>Ayer</div>
+          <div style={{ ...cifra(22), marginTop: 4, color: MACACO.textDim }}>{clp(r.ayer)}</div>
+          <div style={{ fontSize: 11, marginTop: 4, fontWeight: 600, color: r.vsAyer == null || r.hoy === 0 ? MACACO.textMuted : r.vsAyer >= 0 ? MACACO.success : MACACO.danger }}>
+            {r.vsAyer == null ? 'Sin ventas ayer' : r.hoy === 0 ? 'Hoy todavía no hay ventas' : `Hoy ${r.vsAyer >= 0 ? '+' : ''}${r.vsAyer}% vs ayer`}
+          </div>
+        </div>
+      </div>
+
+      {/* Meta del mes */}
+      {r.pctMes != null && (
+        <div style={{ background: MACACO.card, border: `1px solid ${MACACO.border}`, borderRadius: 16, padding: 14, marginTop: 10 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <div style={etiqueta}>Meta del mes</div>
+            <div style={{ ...cifra(18), color: metaOk ? MACACO.success : MACACO.primary }}>{r.pctMes}%</div>
+          </div>
+          <div style={{ margin: '10px 0 8px' }}><Progress value={r.pctMes} color={metaOk ? MACACO.success : MACACO.primary} /></div>
+          <div style={{ fontSize: 12, color: MACACO.textDim, lineHeight: 1.45 }}>
+            {metaOk
+              ? <>Meta cumplida: llevas <b style={{ color: MACACO.text }}>{clp(r.mes)}</b>.</>
+              : <>Llevas <b style={{ color: MACACO.text }}>{clp(r.mes)}</b>. Faltan <b style={{ color: MACACO.text }}>{clp(r.faltaMes)}</b>: {clp(r.porDia)} por día en {r.diasQuedan} día{r.diasQuedan > 1 ? 's' : ''}.</>}
+          </div>
+        </div>
+      )}
+
+      {/* En camino + cerebro */}
+      <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+        {r.pedidosEnCamino > 0 && (
+          <button onClick={() => go('inventario')} style={{
+            flex: 1, background: MACACO.card, border: `1px solid ${MACACO.border}`, borderRadius: 14, padding: '11px 12px',
+            color: MACACO.text, fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', textAlign: 'left',
+          }}>📦 {r.pedidosEnCamino} pedido{r.pedidosEnCamino > 1 ? 's' : ''} en camino</button>
+        )}
+        <button onClick={() => go('cerebro')} style={{
+          flex: 1, background: 'transparent', border: `1px solid ${MACACO.lavanda}`, borderRadius: 14, padding: '11px 12px',
+          color: MACACO.lavanda, fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+        }}><Icon.brain size={16} /> Ver el cerebro</button>
+      </div>
+    </div>
   );
 }
