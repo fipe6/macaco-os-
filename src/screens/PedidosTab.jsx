@@ -89,6 +89,32 @@ export default function PedidosTab() {
         <Icon.plus size={15} /> NUEVO PEDIDO A PROVEEDOR
       </button>
 
+      {/* Pendiente: marcar el día de llegada de cada pedido (así se mide cuánto demora cada proveedor) */}
+      {activos.length > 0 && (
+        <Card padding={14} accent="rgba(245,197,24,0.45)" style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 10.5, color: MACACO.primary, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+            ⏳ Pendiente · marcar el día de llegada
+          </div>
+          <div style={{ fontSize: 12, color: MACACO.textDim, marginTop: 4, lineHeight: 1.45 }}>
+            Cuando llegue cada pedido, marca el día. Así queda anotado cuánto demora cada proveedor.
+          </div>
+          {activos.map(o => {
+            const lleva = diasEntre(o.fechaPedido, hoy);
+            return (
+              <div key={o.key} style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.proveedor}</div>
+                  <div style={{ fontSize: 11, color: MACACO.textMuted, marginTop: 1 }}>
+                    Pedido {fechaCorta(o.fechaPedido)} · lleva {lleva} día{lleva !== 1 ? 's' : ''}
+                  </div>
+                </div>
+                <button onClick={() => setRecibir(o)} style={{ ...btn(MACACO.primary, true), flex: 'none', padding: '9px 12px' }}>MARCAR LLEGADA</button>
+              </div>
+            );
+          })}
+        </Card>
+      )}
+
       {/* Cuándo pedir */}
       <SectionTitle>Cuándo pedir</SectionTitle>
       {sugerencias.length === 0 ? (
@@ -195,7 +221,7 @@ export default function PedidosTab() {
                       style={btn(MACACO.cyan)}
                     >MARCAR EN CAMINO</button>
                   )}
-                  <button onClick={() => setRecibir(o)} style={btn(MACACO.success, true)}>RECIBIDO</button>
+                  <button onClick={() => setRecibir(o)} style={btn(MACACO.success, true)}>MARCAR LLEGADA</button>
                   <button
                     onClick={() => { if (window.confirm(o.lineas.some(l => l.gastoId) ? '¿Cancelar este pedido? Se devuelve lo pagado a la caja.' : '¿Cancelar este pedido?')) cancelarOrden(o.key); }}
                     style={{ ...btn(MACACO.textMuted), flex: 'none', padding: '9px 12px' }}
@@ -226,7 +252,7 @@ export default function PedidosTab() {
             <div style={{ height: 1, background: MACACO.borderSoft, margin: '10px 0' }} />
             <div style={{ fontSize: 11, color: MACACO.textDim, lineHeight: 1.6 }}>
               Invertido <b style={{ color: '#fff' }}>{clpCompact(g.invertido)}</b><br />
-              {g.recibidos} entrega{g.recibidos !== 1 ? 's' : ''}{g.enCamino > 0 ? ` · ${g.enCamino} en curso` : ''}
+              {g.recibidos} entrega{g.recibidos !== 1 ? 's' : ''}{g.enCamino > 0 ? ` · ${g.enCamino} por marcar llegada` : ''}
             </div>
           </div>
         ))}
@@ -503,6 +529,10 @@ function NuevoPedidoSheet({ inicial, productos, proveedores, caja, onClose, onSa
         </div>
       )}
 
+      <div style={{ fontSize: 11.5, color: MACACO.textMuted, lineHeight: 1.45, margin: '0 2px 12px' }}>
+        ⏳ Al guardar, queda <b style={{ color: MACACO.primary }}>pendiente marcar el día de llegada</b>: lo marcas cuando llegue y así se registra cuánto demora este proveedor.
+      </div>
+
       <button
         disabled={!canSave}
         onClick={() => canSave && onSave({
@@ -532,7 +562,7 @@ function RecibirSheet({ orden, onClose, onConfirm }) {
   const valido = fecha && dias >= 0;
 
   return (
-    <Sheet titulo="Recibir pedido" subtitulo={orden.proveedor} onClose={onClose}>
+    <Sheet titulo="Marcar llegada" subtitulo={orden.proveedor} onClose={onClose}>
       <div style={{ fontSize: 12.5, color: MACACO.textDim, marginBottom: 12, lineHeight: 1.5 }}>
         Pedido el {fechaCorta(orden.fechaPedido)}. Al confirmar entran estas unidades al stock:
       </div>
@@ -568,7 +598,7 @@ function RecibirSheet({ orden, onClose, onConfirm }) {
           cursor: valido ? 'pointer' : 'not-allowed',
         }}
       >
-        CONFIRMAR RECEPCIÓN
+        GUARDAR LLEGADA
       </button>
     </Sheet>
   );

@@ -126,7 +126,7 @@ function DBStatusBadge({ error, sync, onReintentar }) {
   );
 }
 
-const APP_VERSION = '1793143264';
+const APP_VERSION = '1793201718';
 
 function AppInner() {
   const [screen, setScreen]           = useState('cerebro');

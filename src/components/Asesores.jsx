@@ -1,10 +1,11 @@
 // Asesores: personajes con emoji, color y una forma propia, para reconocerlos
 // de un vistazo. Tocar uno abre su ficha y la ayuda lista para pedir.
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { MACACO } from '../theme.js';
 import { useApp } from '../store.jsx';
 import { ASESORES, AREAS_ASESORES, deArea } from '../asesores/asesores.js';
-import { armarPrompt } from '../asesores/prompt.js';
+import { armarPrompt, armarSistema } from '../asesores/prompt.js';
+import { preguntarAsesor } from '../services/asesorChat.js';
 import { Capa } from './Capa.jsx';
 
 const FORMAS = {
@@ -65,22 +66,41 @@ export function Asesores({ area, ids, titulo = 'Tu equipo', envolver = false }) 
   );
 }
 
-// Ficha del asesor + el mensaje listo para pegar en un chat con Claude.
+// Ficha del asesor: se le consulta aquí mismo (responde Claude con tus ventas,
+// gastos y productos; nunca caja, deudas ni costos). Copiar el mensaje queda
+// como respaldo para usarlo en otro chat.
 export function AsesorSheet({ asesor, onClose }) {
   const { ventas, gastos, productos } = useApp();
-  const [pregunta, setPregunta] = useState(asesor.preguntas[0]);
+  const datos = { ventas, gastos, productos };
+  const [chat, setChat] = useState([]);          // [{ role, content, error? }]
+  const [texto, setTexto] = useState('');
+  const [pensando, setPensando] = useState(false);
   const [copiado, setCopiado] = useState(false);
   const [verReglas, setVerReglas] = useState(false);
-  const mensaje = armarPrompt(asesor, pregunta, { ventas, gastos, productos });
+  const [aMano, setAMano] = useState(false);
+  const fin = useRef(null);
+  useEffect(() => { fin.current?.scrollIntoView?.({ behavior: 'smooth', block: 'end' }); }, [chat, pensando]);
 
+  const enviar = async (pregunta) => {
+    const q = pregunta.trim();
+    if (!q || pensando) return;
+    const mensajes = [...chat.filter(m => !m.error), { role: 'user', content: q }];
+    setChat([...chat, { role: 'user', content: q }]);
+    setTexto('');
+    setPensando(true);
+    const r = await preguntarAsesor({ system: armarSistema(asesor, datos), mensajes });
+    setChat(c => [...c, r.ok ? { role: 'assistant', content: r.texto } : { role: 'assistant', content: r.error, error: true }]);
+    setPensando(false);
+  };
+
+  const mensaje = armarPrompt(asesor, chat.find(m => m.role === 'user')?.content || asesor.preguntas[0], datos);
   const copiar = async () => {
     try {
       await navigator.clipboard.writeText(mensaje);
       setCopiado(true);
       setTimeout(() => setCopiado(false), 2200);
     } catch {
-      // Sin permiso para copiar: se selecciona el texto para copiarlo a mano.
-      document.getElementById('asesor-mensaje')?.select();
+      setAMano(true);   // sin permiso para copiar: se muestra el texto para copiarlo a mano
     }
   };
 
@@ -96,39 +116,72 @@ export function AsesorSheet({ asesor, onClose }) {
         <div style={{ width: 36, height: 4, borderRadius: 999, background: 'rgba(255,255,255,0.18)', margin: '0 auto 16px' }} />
 
         <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-          <AsesorAvatar asesor={asesor} size={72} activo />
-          <div style={{ minWidth: 0 }}>
+          <AsesorAvatar asesor={asesor} size={64} activo />
+          <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.02em' }}>{asesor.nombre}</div>
             <div style={{ fontSize: 13, color: MACACO.textDim, marginTop: 3, lineHeight: 1.4 }}>{asesor.funcion}</div>
           </div>
+          <button onClick={onClose} aria-label="Cerrar" style={{
+            width: 32, height: 32, borderRadius: 999, flexShrink: 0, background: MACACO.cardElev, border: `1px solid ${MACACO.border}`,
+            color: '#fff', fontSize: 18, cursor: 'pointer', fontFamily: 'inherit',
+          }}>×</button>
         </div>
 
-        <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '0.14em', color: asesor.color, margin: '20px 0 8px' }}>¿QUÉ LE PREGUNTO?</div>
+        {/* Conversación */}
+        {chat.length > 0 && (
+          <div aria-live="polite" style={{ display: 'flex', flexDirection: 'column', gap: 10, margin: '18px 0 4px' }}>
+            {chat.map((m, i) => (
+              <div key={i} style={{
+                alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '88%', whiteSpace: 'pre-wrap',
+                padding: '10px 13px', borderRadius: 14, fontSize: 13.5, lineHeight: 1.5,
+                background: m.role === 'user' ? asesor.color + '30' : m.error ? 'rgba(255,77,77,0.12)' : MACACO.card,
+                border: `1px solid ${m.role === 'user' ? asesor.color : m.error ? 'rgba(255,77,77,0.4)' : MACACO.border}`,
+                color: m.error ? MACACO.danger : MACACO.text,
+              }}>{m.content}</div>
+            ))}
+            {pensando && <div style={{ alignSelf: 'flex-start', fontSize: 12.5, color: MACACO.textMuted, padding: '4px 2px' }}>{asesor.nombre} está pensando…</div>}
+            <div ref={fin} />
+          </div>
+        )}
+
+        {/* Preguntas listas: tocar una la envía */}
+        <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '0.14em', color: asesor.color, margin: '18px 0 8px' }}>
+          {chat.length ? 'OTRA PREGUNTA' : '¿QUÉ LE PREGUNTO?'}
+        </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {asesor.preguntas.map(p => {
-            const on = p === pregunta;
-            return (
-              <button key={p} onClick={() => setPregunta(p)} style={{
-                textAlign: 'left', padding: '11px 13px', borderRadius: 12, cursor: 'pointer', fontFamily: 'inherit',
-                fontSize: 13, fontWeight: on ? 700 : 500, lineHeight: 1.35, color: MACACO.text,
-                background: on ? asesor.color + '22' : MACACO.card, border: `1px solid ${on ? asesor.color : MACACO.border}`,
-              }}>{p}</button>
-            );
-          })}
+          {asesor.preguntas.map(p => (
+            <button key={p} disabled={pensando} onClick={() => enviar(p)} style={{
+              textAlign: 'left', padding: '11px 13px', borderRadius: 12, cursor: pensando ? 'default' : 'pointer', fontFamily: 'inherit',
+              fontSize: 13, fontWeight: 500, lineHeight: 1.35, color: MACACO.text, opacity: pensando ? 0.5 : 1,
+              background: MACACO.card, border: `1px solid ${MACACO.border}`,
+            }}>{p}</button>
+          ))}
         </div>
 
-        <button onClick={copiar} style={{
-          width: '100%', marginTop: 14, padding: 14, borderRadius: 12, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
-          fontSize: 13.5, fontWeight: 800, color: '#0A0A0F', background: copiado ? '#3FCB7F' : '#9984D8', transition: 'background 200ms',
-        }}>{copiado ? '✓ Copiado: pégalo en tu chat con Claude' : `Copiar mensaje para ${asesor.nombre}`}</button>
+        {/* Pregunta propia */}
+        <form onSubmit={(e) => { e.preventDefault(); enviar(texto); }} style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+          <input value={texto} onChange={e => setTexto(e.target.value)} maxLength={500} placeholder={`Escríbele a ${asesor.nombre}…`}
+            aria-label={`Pregunta para ${asesor.nombre}`} style={{
+              flex: 1, minWidth: 0, boxSizing: 'border-box', background: MACACO.cardElev, border: `1px solid ${MACACO.border}`,
+              borderRadius: 12, padding: '12px 14px', color: '#fff', fontSize: 14, outline: 'none', fontFamily: 'inherit',
+            }} />
+          <button type="submit" disabled={pensando || !texto.trim()} style={{
+            padding: '0 18px', borderRadius: 12, border: 'none', fontFamily: 'inherit', fontSize: 13, fontWeight: 800,
+            color: '#0A0A0F', background: asesor.color, cursor: pensando || !texto.trim() ? 'default' : 'pointer', opacity: pensando || !texto.trim() ? 0.45 : 1,
+          }}>Enviar</button>
+        </form>
         <div style={{ fontSize: 11, color: MACACO.textMuted, marginTop: 8, lineHeight: 1.45 }}>
-          Incluye el rol y datos de ventas, gastos y productos. <b style={{ color: MACACO.textDim }}>No lleva caja, deudas ni costos de compra.</b>
+          Responde con tus ventas, gastos y productos. <b style={{ color: MACACO.textDim }}>No ve caja, deudas ni costos de compra.</b>
         </div>
 
-        <button onClick={() => setVerReglas(v => !v)} style={{
-          marginTop: 16, background: 'transparent', border: 'none', color: MACACO.textDim, cursor: 'pointer',
-          fontFamily: 'inherit', fontSize: 12, fontWeight: 700, padding: 0,
-        }}>{verReglas ? '▾ Ocultar cómo trabaja' : '▸ Cómo trabaja'}</button>
+        <div style={{ display: 'flex', gap: 16, marginTop: 16, flexWrap: 'wrap' }}>
+          <button onClick={() => setVerReglas(v => !v)} style={{
+            background: 'transparent', border: 'none', color: MACACO.textDim, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, padding: 0,
+          }}>{verReglas ? '▾ Ocultar cómo trabaja' : '▸ Cómo trabaja'}</button>
+          <button onClick={copiar} style={{
+            background: 'transparent', border: 'none', color: copiado ? '#3FCB7F' : MACACO.textDim, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, padding: 0,
+          }}>{copiado ? '✓ Copiado' : 'Copiar mensaje para otro chat'}</button>
+        </div>
         {verReglas && (
           <div style={{ marginTop: 10 }}>
             <div style={{ fontSize: 12.5, color: MACACO.textDim, lineHeight: 1.5, marginBottom: 8 }}>{asesor.mision}</div>
@@ -142,14 +195,12 @@ export function AsesorSheet({ asesor, onClose }) {
             </div>
           </div>
         )}
-
-        <label htmlFor="asesor-mensaje" style={{ display: 'block', fontSize: 10.5, color: MACACO.textMuted, margin: '16px 0 6px' }}>
-          Así se ve el mensaje (por si no se copia solo):
-        </label>
-        <textarea id="asesor-mensaje" readOnly value={mensaje} rows={5} style={{
-          width: '100%', boxSizing: 'border-box', background: MACACO.card, color: MACACO.textDim, border: `1px solid ${MACACO.border}`,
-          borderRadius: 10, padding: 10, fontSize: 11, fontFamily: 'JetBrains Mono, ui-monospace, monospace', resize: 'vertical',
-        }} />
+        {aMano && (
+          <textarea readOnly autoFocus value={mensaje} rows={6} onFocus={e => e.target.select()} aria-label="Mensaje para copiar" style={{
+            width: '100%', boxSizing: 'border-box', marginTop: 12, background: MACACO.card, color: MACACO.textDim, border: `1px solid ${MACACO.border}`,
+            borderRadius: 10, padding: 10, fontSize: 11, fontFamily: 'JetBrains Mono, ui-monospace, monospace', resize: 'vertical',
+          }} />
+        )}
       </div>
     </div></Capa>
   );

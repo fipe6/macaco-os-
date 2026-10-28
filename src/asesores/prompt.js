@@ -33,7 +33,9 @@ export function datosDeApoyo({ ventas = [], gastos = [], productos = [], hoy = n
   return out;
 }
 
-export function armarPrompt(asesor, pregunta, datosApp) {
+// Rol, reglas y datos permitidos: lo que se le da al asesor ANTES de preguntarle.
+// Es el mismo texto para copiar al chat y para consultarlo dentro de la app.
+export function armarSistema(asesor, datosApp) {
   const apoyo = datosDeApoyo(datosApp, asesor.datos);
   return [
     `Actúa como "${asesor.nombre}" ${asesor.emoji}, asesor de Makako (tienda de suplementos deportivos en Arica, Chile).`,
@@ -44,7 +46,10 @@ export function armarPrompt(asesor, pregunta, datosApp) {
     '',
     'Cómo respondes: español chileno simple, trato "tú", muy corto (máximo 8 líneas), con UN solo siguiente paso al final. Si no tienes un dato, dilo: no lo inventes.',
     ...(apoyo.length ? ['', 'Datos de apoyo (sin caja, deudas ni costos de compra):', ...apoyo] : []),
-    '',
-    `Pregunta: ${pregunta}`,
   ].join('\n');
+}
+
+// Mensaje completo para pegar en cualquier chat de Claude.
+export function armarPrompt(asesor, pregunta, datosApp) {
+  return [armarSistema(asesor, datosApp), '', `Pregunta: ${pregunta}`].join('\n');
 }
