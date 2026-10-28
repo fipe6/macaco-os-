@@ -1,5 +1,5 @@
-// Portada: el cerebro. Un mapa de puntos de luz, un punto por área; abajo los
-// mismos accesos en lista (para el celular). Arriba, UN solo paso para hoy.
+// Portada: el cerebro. Un mapa de puntos de luz, un punto por área; debajo, la
+// caja y cómo va el día. Arriba, UN solo paso para hoy.
 import { useMemo } from 'react';
 import { MACACO } from '../theme.js';
 import { useApp } from '../store.jsx';
@@ -59,29 +59,6 @@ export default function PortadaScreen({ go }) {
       </div>
       <div style={{ fontSize: 11, ...fino, color: MACACO.textMuted, textAlign: 'center', marginTop: 2 }}>
         Más brillo = mejor va esa área · punto tenue = aún sin medir
-      </div>
-
-      {/* Lista: lo mismo, pensado para el pulgar */}
-      <div style={{ marginTop: 34 }}>
-        {areas.map(a => (
-          <button key={a.id} onClick={() => abrir(a)} style={{
-            width: '100%', textAlign: 'left', background: 'transparent', border: 'none', cursor: 'pointer', color: MACACO.text,
-            fontFamily: 'inherit', padding: '15px 0', display: 'flex', alignItems: 'center', gap: 14,
-          }}>
-            <span aria-hidden="true" style={{
-              width: 10, height: 10, borderRadius: 999, flexShrink: 0,
-              background: a.medido ? (a.salud >= 0.66 ? MACACO.verde : MACACO.lavanda) : 'transparent',
-              border: a.medido ? 'none' : `1.5px dashed ${MACACO.lavanda}`,
-              opacity: a.medido ? 0.35 + 0.65 * a.salud : 0.6,
-              boxShadow: a.medido ? `0 0 ${4 + 10 * a.salud}px ${a.salud >= 0.66 ? MACACO.verde : MACACO.lavanda}` : 'none',
-            }} />
-            <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ display: 'block', fontSize: 22, fontWeight: 400, letterSpacing: '-0.03em' }}>{a.nombre}</span>
-              <span style={{ display: 'block', fontSize: 13, ...fino, color: a.medido ? '#bdbdbd' : MACACO.textMuted, marginTop: 2 }}>{a.dato}</span>
-            </span>
-            <span style={{ color: MACACO.textMuted }}><Icon.arrowRight size={16} /></span>
-          </button>
-        ))}
       </div>
 
       {/* Lo demás, debajo del cerebro: caja, hoy contra ayer y la meta del mes */}
