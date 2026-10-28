@@ -160,7 +160,7 @@ export function AsesorSheet({ asesor, onClose }) {
 
         {/* Pregunta propia */}
         <form onSubmit={(e) => { e.preventDefault(); enviar(texto); }} style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-          <input value={texto} onChange={e => setTexto(e.target.value)} maxLength={500} placeholder={`Escíbele a ${asesor.nombre}…`}
+          <input value={texto} onChange={e => setTexto(e.target.value)} maxLength={500} placeholder={`Escríbele a ${asesor.nombre}…`}
             aria-label={`Pregunta para ${asesor.nombre}`} style={{
               flex: 1, minWidth: 0, boxSizing: 'border-box', background: MACACO.cardElev, border: `1px solid ${MACACO.border}`,
               borderRadius: 12, padding: '12px 14px', color: '#fff', fontSize: 14, outline: 'none', fontFamily: 'inherit',
