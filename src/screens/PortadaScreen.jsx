@@ -7,12 +7,15 @@ import { escanearCorteza } from '../corteza.js';
 import { areasPortada, ahoraPaso } from '../domain/portada.js';
 import { CerebroMapa } from '../components/CerebroMapa.jsx';
 import { Icon } from '../components/ui.jsx';
+import { ResumenInicio } from '../components/ResumenInicio.jsx';
+import { resumenInicio } from '../domain/inicio.js';
 
 const fino = { fontWeight: 300 };
 const etiqueta = { fontSize: 11, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase' };
 
 export default function PortadaScreen({ go }) {
-  const { productos, ventas, gastos, deudas, caja, config, corteza, sync } = useApp();
+  const { productos, ventas, gastos, deudas, caja, config, corteza, sync, pedidos } = useApp();
+  const resumen = useMemo(() => resumenInicio({ ventas, config, pedidos }), [ventas, config, pedidos]);
 
   const areas = useMemo(() => areasPortada({ productos, ventas, gastos, deudas, caja, config }),
     [productos, ventas, gastos, deudas, caja, config]);
@@ -81,9 +84,14 @@ export default function PortadaScreen({ go }) {
         ))}
       </div>
 
+      {/* Lo demás, debajo del cerebro: caja, hoy contra ayer y la meta del mes */}
+      <div style={{ marginTop: 34 }}>
+        <ResumenInicio r={resumen} caja={caja} colchon={config.colchonMinimo} go={go} cerebro={false} />
+      </div>
+
       {/* Enlaces discretos */}
       <div style={{ display: 'flex', gap: 22, marginTop: 22, flexWrap: 'wrap' }}>
-        {[['Tu equipo · 12 asesores', 'equipo'], ['Resumen del día', 'home'], ['Decisiones del cerebro', 'corteza']].map(([t, d]) => (
+        {[['Tu equipo · 12 asesores', 'equipo'], ['Más datos del día', 'home'], ['Decisiones del cerebro', 'corteza']].map(([t, d]) => (
           <button key={d} onClick={() => go(d)} style={{
             background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: 0,
             fontSize: 13, fontWeight: 400, color: MACACO.textDim, textDecoration: 'underline', textUnderlineOffset: 4,
